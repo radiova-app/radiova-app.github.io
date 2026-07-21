@@ -1,0 +1,61 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="Privacy Policy" description="Radiova privacy policy">
+  <section class="page">
+    <div class="container">
+      <h1 class="page__title">Privacy Policy</h1>
+      <p class="page__notice">
+        <strong>DRAFT:</strong> This is a template privacy policy. It does not constitute a legally binding
+        document.
+      </p>
+      <div class="page__content">
+        <p>
+          This page will contain the Radiova privacy policy. No data collection or processing
+          details are defined at this stage.
+        </p>
+        <h2>TODO</h2>
+        <ul>
+          <li>Define what data the app collects</li>
+          <li>Define how data is stored and processed</li>
+          <li>Define third-party services used</li>
+          <li>Define user rights under applicable regulations</li>
+          <li>Add contact information for privacy inquiries</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style lang="scss">
+  @use "tokens" as *;
+
+  .page {
+    padding: $spacing-3xl 0;
+  }
+
+  .page__title {
+    font-size: $font-size-3xl;
+    font-weight: 700;
+    margin-bottom: $spacing-lg;
+  }
+
+  .page__content {
+    max-width: 700px;
+    line-height: $line-height-base;
+
+    p {
+      margin-bottom: $spacing-md;
+    }
+
+    ul {
+      margin-left: $spacing-lg;
+      margin-bottom: $spacing-md;
+    }
+
+    li {
+      margin-bottom: $spacing-xs;
+    }
+  }
+</style>

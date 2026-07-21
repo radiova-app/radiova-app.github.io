@@ -1,0 +1,35 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="Support" description="Get help with Radiova">
+  <section class="page">
+    <div class="container">
+      <h1 class="page__title">Support</h1>
+      <p class="page__text">
+        Need help with Radiova? This page will provide support information and contact methods.
+      </p>
+      <p class="page__text">Support options are being prepared. Check back later for updates.</p>
+    </div>
+  </section>
+</BaseLayout>
+
+<style lang="scss">
+  @use "tokens" as *;
+
+  .page {
+    padding: $spacing-3xl 0;
+  }
+
+  .page__title {
+    font-size: $font-size-3xl;
+    font-weight: 700;
+    margin-bottom: $spacing-lg;
+  }
+
+  .page__text {
+    color: $color-text-muted;
+    margin-bottom: $spacing-md;
+    max-width: 600px;
+  }
+</style>

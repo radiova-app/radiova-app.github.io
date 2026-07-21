@@ -1,0 +1,97 @@
+---
+import { NAV } from "../config/site";
+import LanguageSwitcher from "./LanguageSwitcher.astro";
+
+export interface Props {
+  lang?: string;
+}
+
+const { lang = "en" } = Astro.props;
+
+function localizeHref(href: string): string {
+  if (lang === "en") return href;
+  return lang === "uk" ? `/uk${href === "/" ? "" : href}` : `/de${href === "/" ? "" : href}`;
+}
+
+function localizeLabel(item: (typeof NAV)[number]): string {
+  if (lang === "uk") return item.labelUk;
+  if (lang === "de") return item.labelDe;
+  return item.label;
+}
+---
+
+<header class="header">
+  <div class="container header__inner">
+    <a href={localizeHref("/")} class="header__logo">Radiova</a>
+    <nav
+      class="header__nav"
+      aria-label={lang === "uk"
+        ? "Основна навігація"
+        : lang === "de"
+          ? "Hauptnavigation"
+          : "Main navigation"}
+    >
+      <ul class="header__nav-list">
+        {
+          NAV.map((item) => (
+            <li>
+              <a href={localizeHref(item.href)} class="header__nav-link">
+                {localizeLabel(item)}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </nav>
+    <LanguageSwitcher lang={lang} />
+  </div>
+</header>
+
+<style lang="scss">
+  @use "tokens" as *;
+
+  .header {
+    border-bottom: $border-width $border-style $border-color;
+    background: $color-bg-alt;
+  }
+
+  .header__inner {
+    display: flex;
+    align-items: center;
+    gap: $spacing-lg;
+    padding-top: $spacing-md;
+    padding-bottom: $spacing-md;
+  }
+
+  .header__logo {
+    font-size: $font-size-xl;
+    font-weight: 700;
+    color: $color-text;
+    text-decoration: none;
+
+    &:hover {
+      color: $color-accent;
+      text-decoration: none;
+    }
+  }
+
+  .header__nav {
+    margin-left: auto;
+  }
+
+  .header__nav-list {
+    display: flex;
+    gap: $spacing-md;
+    list-style: none;
+  }
+
+  .header__nav-link {
+    color: $color-text-muted;
+    font-size: $font-size-sm;
+
+    &:hover {
+      color: $color-accent;
+      text-decoration: none;
+    }
+  }
+</style>

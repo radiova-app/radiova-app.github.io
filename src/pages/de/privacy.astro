@@ -1,0 +1,61 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="Datenschutz" description="Datenschutzerklärung von Radiova" lang="de">
+  <section class="page">
+    <div class="container">
+      <h1 class="page__title">Datenschutzerklärung</h1>
+      <p class="page__notice">
+        <strong>ENTWURF:</strong> Dies ist eine Vorlage der Datenschutzerklärung. Sie stellt kein rechtlich
+        bindendes Dokument dar.
+      </p>
+      <div class="page__content">
+        <p>
+          Diese Seite wird die Datenschutzerklärung von Radiova enthalten. Derzeit werden keine
+          Daten erhoben oder verarbeitet.
+        </p>
+        <h2>TODO</h2>
+        <ul>
+          <li>Festlegen, welche Daten die App sammelt</li>
+          <li>Festlegen, wie Daten gespeichert und verarbeitet werden</li>
+          <li>Festlegen, welche Drittanbieterdienste verwendet werden</li>
+          <li>Benutzerrechte gemäß geltender Vorschriften definieren</li>
+          <li>Kontaktinformationen für Datenschutzanfragen hinzufügen</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style lang="scss">
+  @use "tokens" as *;
+
+  .page {
+    padding: $spacing-3xl 0;
+  }
+
+  .page__title {
+    font-size: $font-size-3xl;
+    font-weight: 700;
+    margin-bottom: $spacing-lg;
+  }
+
+  .page__content {
+    max-width: 700px;
+    line-height: $line-height-base;
+
+    p {
+      margin-bottom: $spacing-md;
+    }
+
+    ul {
+      margin-left: $spacing-lg;
+      margin-bottom: $spacing-md;
+    }
+
+    li {
+      margin-bottom: $spacing-xs;
+    }
+  }
+</style>

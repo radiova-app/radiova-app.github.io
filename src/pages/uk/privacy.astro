@@ -1,0 +1,65 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+---
+
+<BaseLayout
+  title="Політика конфіденційності"
+  description="Політика конфіденційності Radiova"
+  lang="uk"
+>
+  <section class="page">
+    <div class="container">
+      <h1 class="page__title">Політика конфіденційності</h1>
+      <p class="page__notice">
+        <strong>ЧЕРНЕТКА:</strong> Це початковий шаблон політики конфіденційності. Він не є юридично зобов'язуючим
+        документом.
+      </p>
+      <div class="page__content">
+        <p>
+          Ця сторінка міститиме політику конфіденційності Radiova. Наразі жодних даних не збирається
+          та не обробляється.
+        </p>
+        <h2>TODO</h2>
+        <ul>
+          <li>Визначити, які дані збирає додаток</li>
+          <li>Визначити, як дані зберігаються та обробляються</li>
+          <li>Визначити сторонні сервіси</li>
+          <li>Визначити права користувачів згідно з чинним законодавством</li>
+          <li>Додати контактну інформацію для питань конфіденційності</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style lang="scss">
+  @use "tokens" as *;
+
+  .page {
+    padding: $spacing-3xl 0;
+  }
+
+  .page__title {
+    font-size: $font-size-3xl;
+    font-weight: 700;
+    margin-bottom: $spacing-lg;
+  }
+
+  .page__content {
+    max-width: 700px;
+    line-height: $line-height-base;
+
+    p {
+      margin-bottom: $spacing-md;
+    }
+
+    ul {
+      margin-left: $spacing-lg;
+      margin-bottom: $spacing-md;
+    }
+
+    li {
+      margin-bottom: $spacing-xs;
+    }
+  }
+</style>

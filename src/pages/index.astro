@@ -1,0 +1,114 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import PlatformCard from "../components/PlatformCard.astro";
+---
+
+<BaseLayout title="Home" description="Radiova – listen to radio from around the world">
+  <section class="hero">
+    <div class="container">
+      <h1 class="hero__title">Radiova</h1>
+      <p class="hero__description">
+        A cross-platform radio app. Listen to stations from around the world.
+      </p>
+      <a href="/downloads" class="hero__cta">View Downloads</a>
+    </div>
+  </section>
+
+  <section class="platforms">
+    <div class="container">
+      <h2 class="section-title">Supported Platforms</h2>
+      <div class="platforms__grid">
+        <PlatformCard
+          name="Browser Extension"
+          description="Listen directly in your browser"
+          status="coming-soon"
+        />
+        <PlatformCard name="Android" description="Mobile radio on the go" status="coming-soon" />
+        <PlatformCard name="iOS" description="iPhone and iPad support" status="coming-soon" />
+        <PlatformCard name="Desktop" description="Windows, macOS, Linux" status="coming-soon" />
+      </div>
+    </div>
+  </section>
+
+  <section class="release">
+    <div class="container">
+      <h2 class="section-title">Latest Release</h2>
+      <p class="release__placeholder">Release information will appear here once available.</p>
+      <a href="/downloads" class="release__link">Go to Downloads</a>
+    </div>
+  </section>
+</BaseLayout>
+
+<style lang="scss">
+  @use "tokens" as *;
+
+  .hero {
+    padding: $spacing-3xl 0;
+    text-align: center;
+  }
+
+  .hero__title {
+    font-size: $font-size-3xl;
+    font-weight: 700;
+    margin-bottom: $spacing-md;
+  }
+
+  .hero__description {
+    font-size: $font-size-lg;
+    color: $color-text-muted;
+    max-width: 600px;
+    margin: 0 auto $spacing-xl;
+  }
+
+  .hero__cta {
+    display: inline-block;
+    padding: $spacing-sm $spacing-xl;
+    background: $color-accent;
+    color: #fff;
+    border-radius: $radius-sm;
+    font-size: $font-size-base;
+
+    &:hover {
+      background: $color-accent-hover;
+      text-decoration: none;
+    }
+  }
+
+  .section-title {
+    font-size: $font-size-2xl;
+    font-weight: 700;
+    margin-bottom: $spacing-xl;
+  }
+
+  .platforms {
+    padding: $spacing-3xl 0;
+  }
+
+  .platforms__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: $spacing-lg;
+  }
+
+  .release {
+    padding: $spacing-3xl 0;
+  }
+
+  .release__placeholder {
+    color: $color-text-muted;
+    margin-bottom: $spacing-lg;
+  }
+
+  .release__link {
+    display: inline-block;
+    padding: $spacing-sm $spacing-lg;
+    background: $color-accent;
+    color: #fff;
+    border-radius: $radius-sm;
+
+    &:hover {
+      background: $color-accent-hover;
+      text-decoration: none;
+    }
+  }
+</style>

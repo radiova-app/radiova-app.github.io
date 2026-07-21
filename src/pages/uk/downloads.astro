@@ -1,0 +1,59 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import DownloadCard from "../../components/DownloadCard.astro";
+---
+
+<BaseLayout title="Завантаження" description="Завантажте Radiova для вашої платформи" lang="uk">
+  <section class="page">
+    <div class="container">
+      <h1 class="page__title">Завантаження</h1>
+
+      <h2 class="section-title">Розширення для браузера</h2>
+      <div class="cards-grid">
+        <DownloadCard name="Chrome" available={false} />
+        <DownloadCard name="Firefox" available={false} />
+        <DownloadCard name="Edge" available={false} />
+      </div>
+
+      <h2 class="section-title">Мобільні платформи</h2>
+      <div class="cards-grid">
+        <DownloadCard name="Android" available={false} />
+        <DownloadCard name="iOS" available={false} />
+      </div>
+
+      <h2 class="section-title">Десктоп</h2>
+      <div class="cards-grid">
+        <DownloadCard name="Windows" available={false} />
+        <DownloadCard name="macOS" available={false} />
+        <DownloadCard name="Linux" available={false} />
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<style lang="scss">
+  @use "tokens" as *;
+
+  .page {
+    padding: $spacing-3xl 0;
+  }
+
+  .page__title {
+    font-size: $font-size-3xl;
+    font-weight: 700;
+    margin-bottom: $spacing-2xl;
+  }
+
+  .section-title {
+    font-size: $font-size-xl;
+    font-weight: 600;
+    margin-bottom: $spacing-lg;
+    margin-top: $spacing-2xl;
+  }
+
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: $spacing-lg;
+  }
+</style>

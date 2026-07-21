@@ -1,0 +1,36 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="Підтримка" description="Отримайте допомогу з Radiova" lang="uk">
+  <section class="page">
+    <div class="container">
+      <h1 class="page__title">Підтримка</h1>
+      <p class="page__text">
+        Потрібна допомога з Radiova? Ця сторінка міститиме інформацію про підтримку та способи
+        зв'язку.
+      </p>
+      <p class="page__text">Способи зв'язку готуються. Завітайте пізніше для отримання оновлень.</p>
+    </div>
+  </section>
+</BaseLayout>
+
+<style lang="scss">
+  @use "tokens" as *;
+
+  .page {
+    padding: $spacing-3xl 0;
+  }
+
+  .page__title {
+    font-size: $font-size-3xl;
+    font-weight: 700;
+    margin-bottom: $spacing-lg;
+  }
+
+  .page__text {
+    color: $color-text-muted;
+    margin-bottom: $spacing-md;
+    max-width: 600px;
+  }
+</style>

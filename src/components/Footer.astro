@@ -1,0 +1,51 @@
+---
+import { SITE } from "../config/site";
+const year = new Date().getFullYear();
+---
+
+<footer class="footer">
+  <div class="container footer__inner">
+    <p class="footer__brand">Radiova</p>
+    <nav class="footer__nav" aria-label="Footer navigation">
+      <a href="/support">Support</a>
+      <a href="/privacy">Privacy</a>
+      <a href={SITE.sourceUrl} target="_blank" rel="noopener noreferrer">GitHub</a>
+    </nav>
+    <p class="footer__copy">&copy; {year} Radiova</p>
+  </div>
+</footer>
+
+<style lang="scss">
+  @use "tokens" as *;
+
+  .footer {
+    border-top: $border-width $border-style $border-color;
+    background: $color-bg-alt;
+    margin-top: auto;
+  }
+
+  .footer__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: $spacing-md;
+    padding-top: $spacing-lg;
+    padding-bottom: $spacing-lg;
+    flex-wrap: wrap;
+  }
+
+  .footer__brand {
+    font-weight: 700;
+    font-size: $font-size-lg;
+  }
+
+  .footer__nav {
+    display: flex;
+    gap: $spacing-md;
+  }
+
+  .footer__copy {
+    color: $color-text-muted;
+    font-size: $font-size-sm;
+  }
+</style>
