@@ -2,83 +2,48 @@
 
 [English](README.md) | [Українською](README.uk.md)
 
-Dieses Repository enthält die offizielle Website für **Radiova** – eine plattformübergreifende Radio-App.
+Der öffentliche Radiova-Player ist eine statische Astro-Website und installierbare PWA. Das Design orientiert sich am Extension-Dashboard; die Produktionsadresse ist [radiova-app.github.io](https://radiova-app.github.io).
 
-Die Website wird über GitHub Pages unter [radiova-app.github.io](https://radiova-app.github.io) veröffentlicht.
-
-## Technologien
-
-- [Astro](https://astro.build) – Static-Site-Generator
-- TypeScript (strict mode)
-- SCSS für Styling
-- ESLint + Prettier für Codequalität
-- Vitest für Tests
-- GitHub Actions für CI/CD
-
-## Lokale Entwicklung
+## Entwicklung und Prüfung
 
 ```bash
 npm install
 npm run dev
-```
-
-Der Dev-Server startet unter **http://localhost:4321**.
-
-- Änderungen an `.astro`-, `.ts`- und `.scss`-Dateien werden automatisch per HMR übernommen – kein erneuter Build erforderlich.
-- Alle drei Sprachen (EN, UK, DE) sind während der Entwicklung verfügbar.
-- Drücken Sie `Ctrl+C`, um den Server zu stoppen.
-- `npm run dev:host` startet den Server im lokalen Netzwerk (zum Testen auf dem Handy oder einem anderen PC).
-- `npm run dev:open` startet den Dev-Server und öffnet den Browser automatisch.
-
-### Production-Builds testen
-
-```bash
-# Standard-Build > dist/
+npm run check
+npm run lint
+npm test
 npm run build
 npm run preview
-
-# GitHub-Pages-Build > docs/
-npm run build:prod
-npm run preview:prod
+git diff --check
 ```
 
-- `npm run preview` zeigt `dist/` über den integrierten Astro-Server an.
-- `npm run preview:prod` zeigt `docs/` über einen einfachen Node.js-Static-Server an.
-- Der Dev-Server ist kein Production-Hosting.
+Der lokale Server läuft unter `http://localhost:4321`. Mit `npm run dev:host` kann er im lokalen Netzwerk getestet werden. Der Produktions-Build wird in `dist/` erstellt.
 
-## Tests
+## Playlist-Quellen
 
-```bash
-npm test
-```
+Die Website lädt Laufzeitdaten aus dem öffentlichen Repository [radiova-stations](https://github.com/radiova-app/radiova-stations): das Manifest `generated/playlists-manifest.json` sowie die M3U-Playlists `uk`, `en`, `de`, `global` und `all`.
 
-## Projektstruktur
+Zuerst wird das Manifest und danach nur die ausgewählte Playlist geladen. M3U-Inhalte werden validiert, SHA-256 wird bei Verfügbarkeit geprüft und die letzte gültige Kopie bleibt für die Offline-Nutzung erhalten. Playlist-Updates erfordern keinen Website-Build.
 
-```
-.
-├── .github/workflows/   # CI/CD
-├── public/              # Statische Assets
-├── scripts/             # Build-Hilfsskripte
-├── src/
-│   ├── components/      # Wiederverwendbare Komponenten
-│   ├── layouts/         # Seitenlayouts
-│   ├── pages/           # Routenseiten (en, de, uk)
-│   ├── services/        # API-Dienste
-│   ├── styles/          # SCSS-Tokens und globale Styles
-│   ├── types/           # TypeScript-Typen
-│   └── config/          # Seitenkonfiguration
-├── tests/               # Testdateien
-└── ...Konfigurationsdateien
-```
+## Lokale Daten
 
-## GitHub Pages Deployment
+Alle Nutzerdaten bleiben im Browser:
 
-Die Website wird bei jedem Push in den `main`-Branch automatisch über `.github/workflows/deploy.yml` auf GitHub Pages bereitgestellt.
+- IndexedDB: Favoriten, zuletzt gehörte Sender, Playlist-Cache und eigene Playlists
+- local storage: Lautstärke, Stummschaltung und gewählte Sprache
 
-## Verwandte Repositories
+Eigene Playlists lassen sich erstellen, umbenennen, löschen, aus M3U importieren und nach M3U exportieren. Die Privacy-Seite bietet eine bestätigte Aktion zum Zurücksetzen lokaler Daten.
 
-- [radiova-releases](https://github.com/radiova-app/radiova-releases) – Build-Artefakte und Release-Metadaten
+## PWA
 
-## Projektstatus
+Die Website enthält Manifest, Service Worker, Offline-App-Shell-Cache und maskierbare Icons. In Chromium erscheint die Installationsaktion nach `beforeinstallprompt`.
 
-Dieses Projekt befindet sich in der frühen Entwicklung. Die Website-Struktur wird aufgebaut, es ist noch keine Produktionsversion verfügbar.
+Öffnen Sie die Website auf iPhone oder iPad in Safari, wählen Sie **Teilen** und dann **Zum Home-Bildschirm**. Safari bietet keinen Chromium-Installationsdialog.
+
+Audiostreams werden nicht zwischengespeichert. Falls CORS eines Senders die Audioanalyse verhindert, läuft die Wiedergabe mit einem statischen Visualizer-Fallback weiter.
+
+## GitHub Pages
+
+`.github/workflows/deploy.yml` führt Check, Lint, Tests und Build aus und veröffentlicht anschließend `dist/` nur nach einem Push auf `main` oder einem manuellen Workflow-Start. Lokale Befehle führen kein Deployment aus.
+
+Die Migration der Extension auf das gemeinsame Remote-Manifest ist als separates Follow-up geplant und Teil dieser Änderungen nicht.

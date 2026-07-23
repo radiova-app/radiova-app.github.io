@@ -22,6 +22,7 @@ export default tseslint.config(
       ".astro/",
       "astro.config.mjs",
       "eslint.config.js",
+      "public/sw.js",
     ],
   },
   {

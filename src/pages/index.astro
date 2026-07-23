@@ -1,114 +1,96 @@
 ---
-import BaseLayout from "../layouts/BaseLayout.astro";
-import PlatformCard from "../components/PlatformCard.astro";
+import AppShell from "../layouts/AppShell.astro";
+import { PLAYLIST_LABELS } from "../config/site";
+
+const lang = "en";
+const currentPath = Astro.url.pathname;
 ---
 
-<BaseLayout title="Home" description="Radiova – listen to radio from around the world">
-  <section class="hero">
-    <div class="container">
-      <h1 class="hero__title">Radiova</h1>
-      <p class="hero__description">
-        A cross-platform radio app. Listen to stations from around the world.
-      </p>
-      <a href="/downloads" class="hero__cta">View Downloads</a>
-    </div>
-  </section>
-
-  <section class="platforms">
-    <div class="container">
-      <h2 class="section-title">Supported Platforms</h2>
-      <div class="platforms__grid">
-        <PlatformCard
-          name="Browser Extension"
-          description="Listen directly in your browser"
-          status="coming-soon"
-        />
-        <PlatformCard name="Android" description="Mobile radio on the go" status="coming-soon" />
-        <PlatformCard name="iOS" description="iPhone and iPad support" status="coming-soon" />
-        <PlatformCard name="Desktop" description="Windows, macOS, Linux" status="coming-soon" />
+<AppShell title="Home" description="Radiova – listen to radio from around the world" lang={lang} currentPath={currentPath}>
+  <div class="stations-layout" id="app">
+    <div class="stations-main">
+      <div class="dashboard-player" id="dashboard-player">
+        <div class="player-card">
+          <button class="station-square" id="dashboard-station-square" type="button" aria-label="Play/Pause">
+            <img id="dashboard-station-image" class="station-image" src="/assets/images/station-placeholder.svg" alt="" />
+            <span class="station-toggle-icon" id="dashboard-toggle-icon">
+              <svg viewBox="0 0 24 24" class="menu-icon" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/></svg>
+            </span>
+          </button>
+          <div class="station-main">
+            <a class="station-link" id="dashboard-station-link" href="#" target="_blank" rel="noreferrer noopener">
+              <span id="dashboard-station-title">No station selected</span>
+            </a>
+            <div class="player-audio-side">
+              <div class="audio-block">
+                <canvas id="dashboard-equalizer-left" width="300" height="44" aria-label="Left audio visualizer"></canvas>
+                <div class="level-track"><div class="level-fill" id="dashboard-left-level-fill"></div></div>
+                <div class="level-track"><div class="level-fill" id="dashboard-right-level-fill"></div></div>
+                <canvas id="dashboard-equalizer-right" width="300" height="44" aria-label="Right audio visualizer"></canvas>
+              </div>
+            </div>
+            <div class="streams" id="dashboard-streams"></div>
+          </div>
+        </div>
+        <div class="controls">
+          <button id="dashboard-play-toggle" class="control icon-btn" type="button" aria-label="Play">
+            <span class="icon-wrap" id="dashboard-play-icon"><svg viewBox="0 0 24 24" class="menu-icon" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/></svg></span>
+          </button>
+          <button id="dashboard-prev" class="control icon-btn" type="button" aria-label="Previous">
+            <span class="icon-wrap"><svg viewBox="0 0 24 24" class="menu-icon" aria-hidden="true"><polygon points="19 20 9 12 19 4 19 20" fill="currentColor"/><path d="M5 19V5" stroke="currentColor" stroke-width="2"/></svg></span>
+          </button>
+          <button id="dashboard-next" class="control icon-btn" type="button" aria-label="Next">
+            <span class="icon-wrap"><svg viewBox="0 0 24 24" class="menu-icon" aria-hidden="true"><polygon points="5 4 15 12 5 20 5 4" fill="currentColor"/><path d="M19 5v14" stroke="currentColor" stroke-width="2"/></svg></span>
+          </button>
+          <button id="dashboard-mute-btn" class="control icon-btn" type="button" aria-label="Mute">
+            <span class="icon-wrap"><svg viewBox="0 0 24 24" class="menu-icon" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07" stroke="currentColor" stroke-width="1.9" fill="none" stroke-linecap="round"/></svg></span>
+          </button>
+          <input id="dashboard-volume" type="range" min="0" max="1" step="0.01" aria-label="Volume" />
+        </div>
+      </div>
+      <section class="station-tabs" aria-label="Playlist tabs">
+        <button class="station-tab" data-locale="uk" role="tab" aria-selected="false">{PLAYLIST_LABELS.uk.en}</button>
+        <button class="station-tab" data-locale="en" role="tab" aria-selected="false">{PLAYLIST_LABELS.en.en}</button>
+        <button class="station-tab" data-locale="de" role="tab" aria-selected="false">{PLAYLIST_LABELS.de.en}</button>
+        <button class="station-tab" data-locale="global" role="tab" aria-selected="false">{PLAYLIST_LABELS.global.en}</button>
+        <button class="station-tab is-active" data-locale="all" role="tab" aria-selected="true">{PLAYLIST_LABELS.all.en}</button>
+      </section>
+      <div class="station-filters">
+        <div class="search-wrap">
+          <svg viewBox="0 0 24 24" class="search-icon" aria-hidden="true"><circle cx="10.5" cy="10.5" r="7.5" stroke="currentColor" stroke-width="1.9" fill="none"/><path d="M21 21l-4.35-4.35" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+          <input id="station-search" type="search" data-i18n-placeholder="search.placeholder" placeholder="Search stations..." aria-label="Search stations" />
+        </div>
+        <span id="station-count" class="station-filter-summary"></span>
+      </div>
+      <div id="loading-indicator" class="loading-indicator is-hidden" data-i18n="loading">Loading...</div>
+      <div id="empty-state" class="empty-state is-hidden" data-i18n="empty.noStations">No stations found</div>
+      <div id="error-state" class="error-state is-hidden">
+        <p data-i18n="error.generic">Something went wrong</p>
+        <button id="retry-btn" class="action-btn" type="button" data-i18n="error.retry">Retry</button>
+      </div>
+      <div id="stations-list" class="stations-admin"></div>
+      <div id="list-footer" class="list-footer">
+        <div id="stations-pagination" class="stations-pagination"></div>
+        <div class="list-footer-controls">
+          <span id="list-count" class="list-count"></span>
+          <div class="page-size-wrap">
+            <label for="page-size-select" data-i18n="pagination.perPage">Per page</label>
+            <select id="page-size-select">
+              <option value="8">8</option>
+              <option value="10" selected>10</option>
+              <option value="20">20</option>
+              <option value="30">30</option>
+            </select>
+          </div>
+        </div>
       </div>
     </div>
-  </section>
-
-  <section class="release">
-    <div class="container">
-      <h2 class="section-title">Latest Release</h2>
-      <p class="release__placeholder">Release information will appear here once available.</p>
-      <a href="/downloads" class="release__link">Go to Downloads</a>
+    <div class="stations-visual">
+      <div class="visual-art-frame">
+        <canvas id="dashboard-side-visualizer" width="280" height="380" aria-label="Audio visualizer"></canvas>
+      </div>
     </div>
-  </section>
-</BaseLayout>
+  </div>
+</AppShell>
 
-<style lang="scss">
-  @use "tokens" as *;
-
-  .hero {
-    padding: $spacing-3xl 0;
-    text-align: center;
-  }
-
-  .hero__title {
-    font-size: $font-size-3xl;
-    font-weight: 700;
-    margin-bottom: $spacing-md;
-  }
-
-  .hero__description {
-    font-size: $font-size-lg;
-    color: $color-text-muted;
-    max-width: 600px;
-    margin: 0 auto $spacing-xl;
-  }
-
-  .hero__cta {
-    display: inline-block;
-    padding: $spacing-sm $spacing-xl;
-    background: $color-accent;
-    color: #fff;
-    border-radius: $radius-sm;
-    font-size: $font-size-base;
-
-    &:hover {
-      background: $color-accent-hover;
-      text-decoration: none;
-    }
-  }
-
-  .section-title {
-    font-size: $font-size-2xl;
-    font-weight: 700;
-    margin-bottom: $spacing-xl;
-  }
-
-  .platforms {
-    padding: $spacing-3xl 0;
-  }
-
-  .platforms__grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: $spacing-lg;
-  }
-
-  .release {
-    padding: $spacing-3xl 0;
-  }
-
-  .release__placeholder {
-    color: $color-text-muted;
-    margin-bottom: $spacing-lg;
-  }
-
-  .release__link {
-    display: inline-block;
-    padding: $spacing-sm $spacing-lg;
-    background: $color-accent;
-    color: #fff;
-    border-radius: $radius-sm;
-
-    &:hover {
-      background: $color-accent-hover;
-      text-decoration: none;
-    }
-  }
-</style>
+<script src="/src/scripts/dashboard.ts"></script>

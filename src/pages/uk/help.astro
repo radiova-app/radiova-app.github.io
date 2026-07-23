@@ -1,0 +1,71 @@
+---
+import AppShell from "../../layouts/AppShell.astro";
+
+const lang = "uk";
+const currentPath = Astro.url.pathname;
+---
+
+<AppShell title="Допомога" description="Допомога з Radiova" lang={lang} currentPath={currentPath}>
+  <section class="content-page">
+    <h1 class="content-page__title" data-i18n="help.title">Допомога</h1>
+    <div class="content-page__body">
+      <p data-i18n="help.intro">Radiova — це веб-радіоплеєр. Виберіть станцію зі списку, щоб почати слухати.</p>
+
+      <h2 data-i18n="help.gettingStarted">Початок роботи</h2>
+      <ol>
+        <li data-i18n="help.step1">Відкрийте головну сторінку</li>
+        <li data-i18n="help.step2">Натисніть на станцію, щоб відтворити</li>
+        <li data-i18n="help.step3">Використовуйте елементи керування плеєром для паузи, перемикання або регулювання гучності</li>
+        <li data-i18n="help.step4">Позначте станції зірочкою, щоб додати до улюблених</li>
+      </ol>
+
+      <h2 data-i18n="help.install">Встановлення як додаток</h2>
+      <p data-i18n="help.install.text">Ви можете встановити Radiova як окремий додаток за допомогою кнопки встановлення у верхній панелі.</p>
+    </div>
+  </section>
+</AppShell>
+
+<style lang="scss">
+  @use "tokens" as *;
+
+  .content-page {
+    padding: $spacing-lg;
+    overflow-y: auto;
+    height: 100%;
+  }
+
+  .content-page__title {
+    font-size: $font-size-xl;
+    font-weight: 700;
+    margin-bottom: $spacing-lg;
+    color: $text;
+  }
+
+  .content-page__body {
+    max-width: 700px;
+    line-height: $line-height-base;
+
+    p {
+      margin-bottom: $spacing-md;
+      color: $muted;
+    }
+
+    h2 {
+      font-size: $font-size-lg;
+      font-weight: 700;
+      margin-top: $spacing-xl;
+      margin-bottom: $spacing-md;
+      color: $text;
+    }
+
+    ol, ul {
+      margin-left: $spacing-lg;
+      margin-bottom: $spacing-md;
+    }
+
+    li {
+      margin-bottom: $spacing-xs;
+      color: $muted;
+    }
+  }
+</style>

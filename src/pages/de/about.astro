@@ -1,0 +1,77 @@
+---
+import AppShell from "../../layouts/AppShell.astro";
+
+const lang = "de";
+const currentPath = Astro.url.pathname;
+---
+
+<AppShell title="Über uns" description="Über Radiova" lang={lang} currentPath={currentPath}>
+  <section class="content-page">
+    <h1 class="content-page__title" data-i18n="about.title">Über Radiova</h1>
+    <div class="content-page__body">
+      <p data-i18n="about.intro">Radiova ist ein plattformübergreifender Radio-Player, mit dem Sie Sender aus der ganzen Welt hören können.</p>
+
+      <h2 data-i18n="playlists.title">Playlists</h2>
+      <p data-i18n="about.playlists">Standard-Playlists sind für ukrainische, englische, deutsche und globale Sender zusammengestellt. Alle Daten werden aus dem offenen radiova-stations-Repository abgerufen.</p>
+
+      <h2 data-i18n="privacy.title">Datenschutz</h2>
+      <p data-i18n="about.privacy">Alle Benutzerdaten werden lokal in Ihrem Browser gespeichert.</p>
+
+      <h2>Links</h2>
+      <ul>
+        <li><a href="https://github.com/radiova-app/radiova-app.github.io">Website-Quellcode</a></li>
+        <li><a href="https://github.com/radiova-app/radiova-stations">Senderdaten</a></li>
+        <li><a href="https://github.com/radiova-app/radiova-releases">Versionen</a></li>
+      </ul>
+    </div>
+  </section>
+</AppShell>
+
+<style lang="scss">
+  @use "tokens" as *;
+
+  .content-page {
+    padding: $spacing-lg;
+    overflow-y: auto;
+    height: 100%;
+  }
+
+  .content-page__title {
+    font-size: $font-size-xl;
+    font-weight: 700;
+    margin-bottom: $spacing-lg;
+    color: $text;
+  }
+
+  .content-page__body {
+    max-width: 700px;
+    line-height: $line-height-base;
+
+    p {
+      margin-bottom: $spacing-md;
+      color: $muted;
+    }
+
+    h2 {
+      font-size: $font-size-lg;
+      font-weight: 700;
+      margin-top: $spacing-xl;
+      margin-bottom: $spacing-md;
+      color: $text;
+    }
+
+    ul {
+      margin-left: $spacing-lg;
+      margin-bottom: $spacing-md;
+    }
+
+    li {
+      margin-bottom: $spacing-xs;
+      color: $muted;
+    }
+
+    a {
+      color: $accent;
+    }
+  }
+</style>

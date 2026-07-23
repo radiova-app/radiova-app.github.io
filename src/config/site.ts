@@ -1,16 +1,32 @@
 export const SITE = {
-  title: "Radiova",
-  description: "Radiova – listen to radio from around the world",
-  url: "https://radiova-app.github.io",
-  sourceUrl: "https://github.com/radiova-app/radiova-app.github.io",
+  title: 'Radiova',
+  description: 'Radiova – listen to radio from around the world',
+  url: 'https://radiova-app.github.io',
+  sourceUrl: 'https://github.com/radiova-app/radiova-app.github.io',
+  stationsUrl: 'https://raw.githubusercontent.com/radiova-app/radiova-stations/master',
   releasesUrl:
-    "https://github.com/radiova-app/radiova-releases/releases/latest/download/latest.json",
-  author: "Radiova",
+    'https://github.com/radiova-app/radiova-releases/releases/latest/download/latest.json',
+  author: 'Radiova',
+  appName: 'Radiova',
+  appNameLong: 'Radiova Radio Player',
+  appDescription: 'Listen to radio stations from around the world',
 } as const;
 
 export const NAV = [
-  { href: "/", label: "Home", labelUk: "Головна", labelDe: "Start" },
-  { href: "/downloads", label: "Downloads", labelUk: "Завантаження", labelDe: "Downloads" },
-  { href: "/support", label: "Support", labelUk: "Підтримка", labelDe: "Support" },
-  { href: "/privacy", label: "Privacy", labelUk: "Конфіденційність", labelDe: "Datenschutz" },
+  { href: '/', label: 'Home', labelUk: 'Головна', labelDe: 'Start' },
+  { href: '/playlists', label: 'Playlists', labelUk: 'Плейлисти', labelDe: 'Playlists' },
+  { href: '/downloads', label: 'Downloads', labelUk: 'Завантаження', labelDe: 'Downloads' },
+  { href: '/about', label: 'About', labelUk: 'Про нас', labelDe: 'Über uns' },
+  { href: '/help', label: 'Help', labelUk: 'Допомога', labelDe: 'Hilfe' },
+  { href: '/privacy', label: 'Privacy', labelUk: 'Конфіденційність', labelDe: 'Datenschutz' },
 ] as const;
+
+export const PLAYLIST_LABELS = {
+  uk: { en: 'Ukrainian', uk: 'Українські', de: 'Ukrainisch' },
+  en: { en: 'English', uk: 'Англійські', de: 'Englisch' },
+  de: { en: 'German', uk: 'Німецькі', de: 'Deutsch' },
+  global: { en: 'Global', uk: 'Світові', de: 'Global' },
+  all: { en: 'All', uk: 'Всі', de: 'Alle' },
+} as const;
+
+export type PlaylistLocale = keyof typeof PLAYLIST_LABELS;

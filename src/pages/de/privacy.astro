@@ -1,61 +1,90 @@
 ---
-import BaseLayout from "../../layouts/BaseLayout.astro";
+import AppShell from "../../layouts/AppShell.astro";
+
+const lang = "de";
+const currentPath = Astro.url.pathname;
 ---
 
-<BaseLayout title="Datenschutz" description="Datenschutzerklärung von Radiova" lang="de">
-  <section class="page">
-    <div class="container">
-      <h1 class="page__title">Datenschutzerklärung</h1>
-      <p class="page__notice">
-        <strong>ENTWURF:</strong> Dies ist eine Vorlage der Datenschutzerklärung. Sie stellt kein rechtlich
-        bindendes Dokument dar.
-      </p>
-      <div class="page__content">
-        <p>
-          Diese Seite wird die Datenschutzerklärung von Radiova enthalten. Derzeit werden keine
-          Daten erhoben oder verarbeitet.
-        </p>
-        <h2>TODO</h2>
-        <ul>
-          <li>Festlegen, welche Daten die App sammelt</li>
-          <li>Festlegen, wie Daten gespeichert und verarbeitet werden</li>
-          <li>Festlegen, welche Drittanbieterdienste verwendet werden</li>
-          <li>Benutzerrechte gemäß geltender Vorschriften definieren</li>
-          <li>Kontaktinformationen für Datenschutzanfragen hinzufügen</li>
-        </ul>
-      </div>
-    </div>
+<AppShell title="Datenschutz" description="Datenschutzerklärung von Radiova" lang={lang} currentPath={currentPath}>
+  <section class="content-page">
+    <h1 class="content-page__title" data-i18n="privacy.title">Datenschutzerklärung</h1>
+    <p class="content-page__text" data-i18n="privacy.intro">Radiova respektiert Ihre Privatsphäre. Alle Daten werden lokal in Ihrem Browser mit IndexedDB gespeichert. Es werden keine persönlichen Informationen gesammelt, übertragen oder weitergegeben.</p>
+
+    <h2 class="content-page__subtitle" data-i18n="privacy.data">Welche Daten wir speichern</h2>
+    <ul class="content-page__list">
+      <li data-i18n="privacy.data.favorites">Ihre Lieblingssender</li>
+      <li data-i18n="privacy.data.history">Hörverlauf</li>
+      <li data-i18n="privacy.data.settings">App-Einstellungen (Sprache, Design, Lautstärke)</li>
+      <li data-i18n="privacy.data.custom">Benutzerdefinierte Playlists</li>
+    </ul>
+
+    <h2 class="content-page__subtitle" data-i18n="privacy.thirdParty">Drittanbieter-Dienste</h2>
+    <p class="content-page__text" data-i18n="privacy.thirdParty.text">Radiova ruft Stationsdaten aus dem offenen radiova-stations GitHub-Repository ab. Audio-Streams werden direkt von den Quell-URLs abgespielt. Es werden keine Analysedienste oder Tracking von Drittanbietern verwendet.</p>
+
+    <h2 class="content-page__subtitle" data-i18n="privacy.reset">Lokale Daten zurücksetzen</h2>
+    <p class="content-page__text" data-i18n="privacy.reset.text">Sie können alle lokal gespeicherten Daten jederzeit mit der folgenden Schaltfläche löschen.</p>
+    <button id="reset-data-btn" class="action-btn" type="button" data-i18n="privacy.reset.action">Alle Daten zurücksetzen</button>
+    <p id="reset-status" class="status" role="status"></p>
   </section>
-</BaseLayout>
+</AppShell>
+
+<script src="/src/scripts/reset-data.ts"></script>
 
 <style lang="scss">
   @use "tokens" as *;
 
-  .page {
-    padding: $spacing-3xl 0;
+  .content-page {
+    padding: $spacing-lg;
+    overflow-y: auto;
+    height: 100%;
   }
 
-  .page__title {
-    font-size: $font-size-3xl;
+  .content-page__title {
+    font-size: $font-size-xl;
     font-weight: 700;
     margin-bottom: $spacing-lg;
+    color: $text;
   }
 
-  .page__content {
+  .content-page__subtitle {
+    font-size: $font-size-lg;
+    font-weight: 700;
+    margin: $spacing-xl 0 $spacing-md;
+    color: $text;
+  }
+
+  .content-page__text {
+    color: $muted;
+    margin-bottom: $spacing-md;
     max-width: 700px;
-    line-height: $line-height-base;
+  }
 
-    p {
-      margin-bottom: $spacing-md;
-    }
-
-    ul {
-      margin-left: $spacing-lg;
-      margin-bottom: $spacing-md;
-    }
+  .content-page__list {
+    margin-left: $spacing-lg;
+    margin-bottom: $spacing-md;
 
     li {
+      color: $muted;
       margin-bottom: $spacing-xs;
     }
+  }
+
+  .action-btn {
+    padding: $spacing-sm $spacing-md;
+    border: 1px solid $line;
+    border-radius: $radius-md;
+    background: var(--app-control-bg);
+    color: $text;
+    cursor: pointer;
+
+    &:hover {
+      border-color: $accent;
+    }
+  }
+
+  .status {
+    margin-top: $spacing-sm;
+    color: $muted;
+    font-size: $font-size-sm;
   }
 </style>

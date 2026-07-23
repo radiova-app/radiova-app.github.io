@@ -1,65 +1,90 @@
 ---
-import BaseLayout from "../../layouts/BaseLayout.astro";
+import AppShell from "../../layouts/AppShell.astro";
+
+const lang = "uk";
+const currentPath = Astro.url.pathname;
 ---
 
-<BaseLayout
-  title="Політика конфіденційності"
-  description="Політика конфіденційності Radiova"
-  lang="uk"
->
-  <section class="page">
-    <div class="container">
-      <h1 class="page__title">Політика конфіденційності</h1>
-      <p class="page__notice">
-        <strong>ЧЕРНЕТКА:</strong> Це початковий шаблон політики конфіденційності. Він не є юридично зобов'язуючим
-        документом.
-      </p>
-      <div class="page__content">
-        <p>
-          Ця сторінка міститиме політику конфіденційності Radiova. Наразі жодних даних не збирається
-          та не обробляється.
-        </p>
-        <h2>TODO</h2>
-        <ul>
-          <li>Визначити, які дані збирає додаток</li>
-          <li>Визначити, як дані зберігаються та обробляються</li>
-          <li>Визначити сторонні сервіси</li>
-          <li>Визначити права користувачів згідно з чинним законодавством</li>
-          <li>Додати контактну інформацію для питань конфіденційності</li>
-        </ul>
-      </div>
-    </div>
+<AppShell title="Конфіденційність" description="Політика конфіденційності Radiova" lang={lang} currentPath={currentPath}>
+  <section class="content-page">
+    <h1 class="content-page__title" data-i18n="privacy.title">Політика конфіденційності</h1>
+    <p class="content-page__text" data-i18n="privacy.intro">Radiova поважає вашу конфіденційність. Всі дані зберігаються локально у вашому браузері за допомогою IndexedDB. Жодна особиста інформація не збирається, не передається та не поширюється.</p>
+
+    <h2 class="content-page__subtitle" data-i18n="privacy.data">Які дані ми зберігаємо</h2>
+    <ul class="content-page__list">
+      <li data-i18n="privacy.data.favorites">Ваші улюблені станції</li>
+      <li data-i18n="privacy.data.history">Історія прослуховування</li>
+      <li data-i18n="privacy.data.settings">Налаштування додатку (мова, тема, гучність)</li>
+      <li data-i18n="privacy.data.custom">Користувацькі плейлисти</li>
+    </ul>
+
+    <h2 class="content-page__subtitle" data-i18n="privacy.thirdParty">Сторонні сервіси</h2>
+    <p class="content-page__text" data-i18n="privacy.thirdParty.text">Radiova отримує дані станцій з відкритого репозиторію radiova-stations на GitHub. Аудіопотоки відтворюються безпосередньо з URL-джерел. Сторонні аналітичні або відстежувальні сервіси не використовуються.</p>
+
+    <h2 class="content-page__subtitle" data-i18n="privacy.reset">Скидання локальних даних</h2>
+    <p class="content-page__text" data-i18n="privacy.reset.text">Ви можете будь-коли очистити всі локально збережені дані за допомогою кнопки нижче.</p>
+    <button id="reset-data-btn" class="action-btn" type="button" data-i18n="privacy.reset.action">Скинути всі дані</button>
+    <p id="reset-status" class="status" role="status"></p>
   </section>
-</BaseLayout>
+</AppShell>
+
+<script src="/src/scripts/reset-data.ts"></script>
 
 <style lang="scss">
   @use "tokens" as *;
 
-  .page {
-    padding: $spacing-3xl 0;
+  .content-page {
+    padding: $spacing-lg;
+    overflow-y: auto;
+    height: 100%;
   }
 
-  .page__title {
-    font-size: $font-size-3xl;
+  .content-page__title {
+    font-size: $font-size-xl;
     font-weight: 700;
     margin-bottom: $spacing-lg;
+    color: $text;
   }
 
-  .page__content {
+  .content-page__subtitle {
+    font-size: $font-size-lg;
+    font-weight: 700;
+    margin: $spacing-xl 0 $spacing-md;
+    color: $text;
+  }
+
+  .content-page__text {
+    color: $muted;
+    margin-bottom: $spacing-md;
     max-width: 700px;
-    line-height: $line-height-base;
+  }
 
-    p {
-      margin-bottom: $spacing-md;
-    }
-
-    ul {
-      margin-left: $spacing-lg;
-      margin-bottom: $spacing-md;
-    }
+  .content-page__list {
+    margin-left: $spacing-lg;
+    margin-bottom: $spacing-md;
 
     li {
+      color: $muted;
       margin-bottom: $spacing-xs;
     }
+  }
+
+  .action-btn {
+    padding: $spacing-sm $spacing-md;
+    border: 1px solid $line;
+    border-radius: $radius-md;
+    background: var(--app-control-bg);
+    color: $text;
+    cursor: pointer;
+
+    &:hover {
+      border-color: $accent;
+    }
+  }
+
+  .status {
+    margin-top: $spacing-sm;
+    color: $muted;
+    font-size: $font-size-sm;
   }
 </style>

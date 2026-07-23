@@ -1,35 +1,16 @@
 ---
-import BaseLayout from "../layouts/BaseLayout.astro";
+import AppShell from "../layouts/AppShell.astro";
+
+const lang = "en";
+const currentPath = Astro.url.pathname;
 ---
 
-<BaseLayout title="Support" description="Get help with Radiova">
-  <section class="page">
-    <div class="container">
-      <h1 class="page__title">Support</h1>
-      <p class="page__text">
-        Need help with Radiova? This page will provide support information and contact methods.
-      </p>
-      <p class="page__text">Support options are being prepared. Check back later for updates.</p>
-    </div>
+<AppShell title="Support" description="Radiova support" lang={lang} currentPath={currentPath}>
+  <section class="content-page">
+    <h1 class="content-page__title">Support</h1>
+    <p class="content-page__text">Radiova is an open-source project. For support, please visit the GitHub repository or contact the developer.</p>
+    <p class="content-page__text">
+      <a href="https://github.com/radiova-app/radiova-app.github.io/issues" target="_blank" rel="noopener noreferrer">Report an issue on GitHub</a>
+    </p>
   </section>
-</BaseLayout>
-
-<style lang="scss">
-  @use "tokens" as *;
-
-  .page {
-    padding: $spacing-3xl 0;
-  }
-
-  .page__title {
-    font-size: $font-size-3xl;
-    font-weight: 700;
-    margin-bottom: $spacing-lg;
-  }
-
-  .page__text {
-    color: $color-text-muted;
-    margin-bottom: $spacing-md;
-    max-width: 600px;
-  }
-</style>
+</AppShell>

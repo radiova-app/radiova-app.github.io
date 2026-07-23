@@ -1,17 +1,37 @@
 ---
 import { SITE } from "../config/site";
+
+export interface Props {
+  lang?: string;
+}
+
+const { lang = "en" } = Astro.props;
 const year = new Date().getFullYear();
+
+const links = [
+  { href: lang === "en" ? "/help" : lang === "uk" ? "/uk/help" : "/de/help", label: "Help", labelUk: "Допомога", labelDe: "Hilfe" },
+  { href: lang === "en" ? "/privacy" : lang === "uk" ? "/uk/privacy" : "/de/privacy", label: "Privacy", labelUk: "Конфіденційність", labelDe: "Datenschutz" },
+  { href: SITE.sourceUrl, label: "GitHub", labelUk: "GitHub", labelDe: "GitHub", external: true },
+];
+
+function localizeLabel(item: (typeof links)[number]): string {
+  if (lang === "uk") return item.labelUk;
+  if (lang === "de") return item.labelDe;
+  return item.label;
+}
 ---
 
 <footer class="footer">
   <div class="container footer__inner">
     <p class="footer__brand">Radiova</p>
-    <nav class="footer__nav" aria-label="Footer navigation">
-      <a href="/support">Support</a>
-      <a href="/privacy">Privacy</a>
-      <a href={SITE.sourceUrl} target="_blank" rel="noopener noreferrer">GitHub</a>
+    <nav class="footer__nav" aria-label={lang === "uk" ? "Навігація внизу" : lang === "de" ? "Fußnavigation" : "Footer navigation"}>
+      {links.map((link) => (
+        <a href={link.href} {...(link.external ? { target: "_blank", rel: "noopener noreferrer" } : {})}>
+          {localizeLabel(link)}
+        </a>
+      ))}
     </nav>
-    <p class="footer__copy">&copy; {year} Radiova</p>
+    <p class="footer__copy">&copy; {year} {lang === "uk" ? "Radiova. Всі права захищено." : lang === "de" ? "Radiova. Alle Rechte vorbehalten." : "Radiova. All rights reserved."}</p>
   </div>
 </footer>
 
@@ -19,8 +39,8 @@ const year = new Date().getFullYear();
   @use "tokens" as *;
 
   .footer {
-    border-top: $border-width $border-style $border-color;
-    background: $color-bg-alt;
+    border-top: $border-width $border-style $line;
+    background: var(--app-panel-gradient);
     margin-top: auto;
   }
 
@@ -45,7 +65,7 @@ const year = new Date().getFullYear();
   }
 
   .footer__copy {
-    color: $color-text-muted;
+    color: $muted;
     font-size: $font-size-sm;
   }
 </style>

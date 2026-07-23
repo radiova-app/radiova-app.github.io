@@ -2,83 +2,48 @@
 
 [English](README.md) | [Deutsch](README.de.md)
 
-Цей репозиторій містить офіційний сайт **Radiova** – кросплатформного радіо-додатку.
+Публічний плеєр Radiova — це статичний сайт на Astro та PWA. Дизайн спирається на dashboard розширення; production-адреса: [radiova-app.github.io](https://radiova-app.github.io).
 
-Сайт публікується через GitHub Pages за адресою [radiova-app.github.io](https://radiova-app.github.io).
-
-## Стек
-
-- [Astro](https://astro.build) – генератор статичних сайтів
-- TypeScript (strict mode)
-- SCSS для стилізації
-- ESLint + Prettier для якості коду
-- Vitest для тестування
-- GitHub Actions для CI/CD
-
-## Локальна розробка
+## Розробка та перевірка
 
 ```bash
 npm install
 npm run dev
-```
-
-Сервер запускається за адресою **http://localhost:4321** за замовчуванням.
-
-- Зміни у файлах `.astro`, `.ts` та `.scss` застосовуються автоматично через HMR – не потрібно перезбирати.
-- Усі три мови (EN, UK, DE) доступні під час розробки.
-- Натисніть `Ctrl+C`, щоб зупинити сервер.
-- `npm run dev:host` запускає сервер у локальній мережі (для тестування з телефона або іншого ПК).
-- `npm run dev:open` запускає сервер і відкриває браузер автоматично.
-
-### Перевірка production-збірок
-
-```bash
-# Звичайна збірка > dist/
+npm run check
+npm run lint
+npm test
 npm run build
 npm run preview
-
-# Збірка для GitHub Pages > docs/
-npm run build:prod
-npm run preview:prod
+git diff --check
 ```
 
-- `npm run preview` показує `dist/` через вбудований сервер Astro.
-- `npm run preview:prod` показує `docs/` через легкий Node.js static server.
-- Сервер розробки не є production-хостингом.
+Локальний сервер доступний за адресою `http://localhost:4321`. `npm run dev:host` відкриває його для інших пристроїв у локальній мережі. Production-збірка створюється в `dist/`.
 
-## Тести
+## Джерела плейлистів
 
-```bash
-npm test
-```
+Сайт у runtime читає дані з публічного [radiova-stations](https://github.com/radiova-app/radiova-stations): manifest `generated/playlists-manifest.json` і плейлисти `uk`, `en`, `de`, `global`, `all` у форматі M3U.
 
-## Структура проєкту
+Спочатку завантажується manifest, потім обраний плейлист. M3U перевіряється, SHA-256 звіряється за наявності, а остання коректна копія зберігається для offline-режиму. Оновлення плейлистів не потребує нової збірки сайту.
 
-```
-.
-├── .github/workflows/   # CI/CD
-├── public/              # Статичні файли
-├── scripts/             # Допоміжні скрипти збірки
-├── src/
-│   ├── components/      # Перевикористовувані компоненти
-│   ├── layouts/         # Макети сторінок
-│   ├── pages/           # Сторінки (en, de, uk)
-│   ├── services/        # API сервіси
-│   ├── styles/          # SCSS токени та глобальні стилі
-│   ├── types/           # TypeScript типи
-│   └── config/          # Конфігурація сайту
-├── tests/               # Тестові файли
-└── ...файли конфігурації
-```
+## Локальні дані
 
-## Публікація на GitHub Pages
+Усі користувацькі дані залишаються в браузері:
 
-Сайт автоматично публікується на GitHub Pages при кожному push у гілку `main` через `.github/workflows/deploy.yml`.
+- IndexedDB: улюблені, нещодавні станції, кеш плейлистів, власні плейлисти
+- local storage: гучність, mute та вибрана мова
 
-## Пов'язані репозиторії
+Власні плейлисти можна створювати, перейменовувати, видаляти, імпортувати з M3U й експортувати в M3U. Сторінка Privacy має підтверджену дію скидання локальних даних.
 
-- [radiova-releases](https://github.com/radiova-app/radiova-releases) – артефакти збірок та метадані релізів
+## PWA
 
-## Статус проєкту
+Є manifest, service worker, offline-кеш shell і maskable-іконки. У Chromium кнопка встановлення з'являється після `beforeinstallprompt`.
 
-Проєкт на ранній стадії розробки. Структура сайту налаштовується, релізи ще не доступні.
+На iPhone або iPad відкрийте сайт у Safari, виберіть **Поділитися**, потім **На екран «Додому»**. Safari не показує Chromium install prompt.
+
+Аудіопотоки не кешуються. Якщо CORS станції блокує аналіз аудіо, відтворення продовжується зі статичним fallback візуалізатора.
+
+## GitHub Pages
+
+`.github/workflows/deploy.yml` запускає check, lint, tests і build, після чого публікує `dist/` у GitHub Pages тільки після push у `main` або ручного запуску workflow. Локальні команди не виконують deploy.
+
+Міграція extension на спільний remote manifest відкладена в окремий follow-up і не входить у зміни цього репозиторію.

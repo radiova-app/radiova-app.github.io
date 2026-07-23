@@ -6,23 +6,23 @@ export interface Props {
 const { lang = "en" } = Astro.props;
 const currentPath = Astro.url.pathname;
 
-const dePath = currentPath === "/" ? "/de/" : `/de${currentPath}`;
-const ukPath = currentPath === "/" ? "/uk/" : `/uk${currentPath}`;
-const enPath = currentPath.replace(/^\/(de|uk)/, "") || "/";
+// Strip locale prefix to get base path
+const basePath = currentPath.replace(/^\/?(uk|de)/, "") || "/";
+// Normalize: ensure leading /
+const normalizedBase = basePath.startsWith("/") ? basePath : "/" + basePath;
+const cleanPath = normalizedBase === "" ? "/" : normalizedBase;
+
+const enPath = cleanPath;
+const ukPath = "/uk" + (cleanPath === "/" ? "" : cleanPath);
+const dePath = "/de" + (cleanPath === "/" ? "" : cleanPath);
 ---
 
-<nav class="language-switcher" aria-label="Language switcher">
-  <a href={enPath} class="language-switcher__link" aria-current={lang === "en" ? "true" : undefined}
-    >EN</a
-  >
+<nav class="language-switcher" aria-label={lang === "uk" ? "Вибір мови" : lang === "de" ? "Sprachauswahl" : "Language switcher"}>
+  <a href={enPath} class="language-switcher__link" aria-current={lang === "en" ? "true" : undefined}>EN</a>
   <span class="language-switcher__sep" aria-hidden="true">|</span>
-  <a href={dePath} class="language-switcher__link" aria-current={lang === "de" ? "true" : undefined}
-    >DE</a
-  >
+  <a href={dePath} class="language-switcher__link" aria-current={lang === "de" ? "true" : undefined}>DE</a>
   <span class="language-switcher__sep" aria-hidden="true">|</span>
-  <a href={ukPath} class="language-switcher__link" aria-current={lang === "uk" ? "true" : undefined}
-    >UK</a
-  >
+  <a href={ukPath} class="language-switcher__link" aria-current={lang === "uk" ? "true" : undefined}>UK</a>
 </nav>
 
 <style lang="scss">
@@ -36,16 +36,16 @@ const enPath = currentPath.replace(/^\/(de|uk)/, "") || "/";
 
   .language-switcher__link {
     font-size: $font-size-sm;
-    color: $color-text-muted;
+    color: $muted;
 
     &[aria-current="true"] {
-      color: $color-accent;
+      color: $accent;
       font-weight: 600;
     }
   }
 
   .language-switcher__sep {
-    color: $color-text-muted;
+    color: $muted;
     font-size: $font-size-sm;
   }
 </style>

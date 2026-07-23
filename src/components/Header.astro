@@ -1,5 +1,4 @@
 ---
-import { NAV } from "../config/site";
 import LanguageSwitcher from "./LanguageSwitcher.astro";
 
 export interface Props {
@@ -7,43 +6,17 @@ export interface Props {
 }
 
 const { lang = "en" } = Astro.props;
-
-function localizeHref(href: string): string {
-  if (lang === "en") return href;
-  return lang === "uk" ? `/uk${href === "/" ? "" : href}` : `/de${href === "/" ? "" : href}`;
-}
-
-function localizeLabel(item: (typeof NAV)[number]): string {
-  if (lang === "uk") return item.labelUk;
-  if (lang === "de") return item.labelDe;
-  return item.label;
-}
 ---
 
 <header class="header">
   <div class="container header__inner">
-    <a href={localizeHref("/")} class="header__logo">Radiova</a>
-    <nav
-      class="header__nav"
-      aria-label={lang === "uk"
-        ? "Основна навігація"
-        : lang === "de"
-          ? "Hauptnavigation"
-          : "Main navigation"}
-    >
-      <ul class="header__nav-list">
-        {
-          NAV.map((item) => (
-            <li>
-              <a href={localizeHref(item.href)} class="header__nav-link">
-                {localizeLabel(item)}
-              </a>
-            </li>
-          ))
-        }
-      </ul>
-    </nav>
-    <LanguageSwitcher lang={lang} />
+    <a href={lang === "en" ? "/" : "/" + lang} class="header__logo">
+      <svg viewBox="0 0 24 24" class="header__logo-icon" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M7 12h10M12 7v10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+      Radiova
+    </a>
+    <div class="header__right">
+      <LanguageSwitcher lang={lang} />
+    </div>
   </div>
 </header>
 
@@ -51,47 +24,43 @@ function localizeLabel(item: (typeof NAV)[number]): string {
   @use "tokens" as *;
 
   .header {
-    border-bottom: $border-width $border-style $border-color;
-    background: $color-bg-alt;
+    border-bottom: $border-width $border-style $line;
+    background: var(--app-panel-gradient);
+    position: sticky;
+    top: 0;
+    z-index: 50;
   }
 
   .header__inner {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: $spacing-lg;
     padding-top: $spacing-md;
     padding-bottom: $spacing-md;
   }
 
   .header__logo {
+    display: flex;
+    align-items: center;
+    gap: $spacing-sm;
     font-size: $font-size-xl;
     font-weight: 700;
-    color: $color-text;
+    color: $text;
     text-decoration: none;
 
     &:hover {
-      color: $color-accent;
+      color: $accent;
       text-decoration: none;
     }
   }
 
-  .header__nav {
+  .header__logo-icon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .header__right {
     margin-left: auto;
-  }
-
-  .header__nav-list {
-    display: flex;
-    gap: $spacing-md;
-    list-style: none;
-  }
-
-  .header__nav-link {
-    color: $color-text-muted;
-    font-size: $font-size-sm;
-
-    &:hover {
-      color: $color-accent;
-      text-decoration: none;
-    }
   }
 </style>

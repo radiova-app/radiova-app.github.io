@@ -5,3 +5,5 @@ dist/
 .env
 .env.*
 !.env.example
+TODO.local.md
+PROMPT-PORT-EXTENSION-DASHBOARD.local.md

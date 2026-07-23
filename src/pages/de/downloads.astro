@@ -1,59 +1,64 @@
 ---
-import BaseLayout from "../../layouts/BaseLayout.astro";
-import DownloadCard from "../../components/DownloadCard.astro";
+import AppShell from "../../layouts/AppShell.astro";
+
+const lang = "de";
+const currentPath = Astro.url.pathname;
 ---
 
-<BaseLayout title="Downloads" description="Radiova für Ihre Plattform herunterladen" lang="de">
-  <section class="page">
-    <div class="container">
-      <h1 class="page__title">Downloads</h1>
+<AppShell title="Downloads" description="Radiova herunterladen" lang={lang} currentPath={currentPath}>
+  <section class="content-page">
+    <h1 class="content-page__title">Downloads</h1>
+    <p class="content-page__text">Laden Sie Radiova für Ihre Plattform herunter oder installieren Sie es als Web-App.</p>
 
-      <h2 class="section-title">Browser-Erweiterungen</h2>
-      <div class="cards-grid">
-        <DownloadCard name="Chrome" available={false} />
-        <DownloadCard name="Firefox" available={false} />
-        <DownloadCard name="Edge" available={false} />
-      </div>
+    <button id="pwa-install-page" class="action-btn" type="button" data-i18n="downloads.install">Installieren</button>
 
-      <h2 class="section-title">Mobil</h2>
-      <div class="cards-grid">
-        <DownloadCard name="Android" available={false} />
-        <DownloadCard name="iOS" available={false} />
-      </div>
-
-      <h2 class="section-title">Desktop</h2>
-      <div class="cards-grid">
-        <DownloadCard name="Windows" available={false} />
-        <DownloadCard name="macOS" available={false} />
-        <DownloadCard name="Linux" available={false} />
-      </div>
-    </div>
+    <section class="ios-installation">
+      <h2>iPhone oder iPad</h2>
+      <p data-i18n="pwa.ios">Auf iOS: Teilen &gt; Zum Home-Bildschirm</p>
+    </section>
   </section>
-</BaseLayout>
+</AppShell>
+
+<script src="/src/scripts/downloads.ts"></script>
 
 <style lang="scss">
   @use "tokens" as *;
 
-  .page {
-    padding: $spacing-3xl 0;
+  .content-page {
+    padding: $spacing-lg;
+    overflow-y: auto;
+    height: 100%;
   }
 
-  .page__title {
-    font-size: $font-size-3xl;
-    font-weight: 700;
-    margin-bottom: $spacing-2xl;
-  }
-
-  .section-title {
+  .content-page__title {
     font-size: $font-size-xl;
-    font-weight: 600;
+    font-weight: 700;
     margin-bottom: $spacing-lg;
-    margin-top: $spacing-2xl;
+    color: $text;
   }
 
-  .cards-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: $spacing-lg;
+  .content-page__text,
+  .ios-installation p {
+    color: $muted;
+  }
+
+  .action-btn {
+    margin-top: $spacing-md;
+    padding: $spacing-sm $spacing-md;
+    border: 1px solid $line;
+    border-radius: $radius-md;
+    background: var(--app-control-bg);
+    color: $text;
+    cursor: pointer;
+  }
+
+  .ios-installation {
+    border-top: 1px solid $line;
+    margin-top: $spacing-xl;
+  }
+
+  .ios-installation h2 {
+    font-size: $font-size-lg;
+    margin: $spacing-xl 0 $spacing-md;
   }
 </style>

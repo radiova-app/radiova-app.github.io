@@ -2,83 +2,70 @@
 
 [Українською](README.uk.md) | [Deutsch](README.de.md)
 
-This repository contains the official website for **Radiova** – a cross-platform radio app.
+The public Radiova radio player is a static Astro website and installable PWA. It is designed around the Radiova extension dashboard and is published at [radiova-app.github.io](https://radiova-app.github.io).
 
-The site is published via GitHub Pages at [radiova-app.github.io](https://radiova-app.github.io).
-
-## Tech Stack
-
-- [Astro](https://astro.build) – static site generator
-- TypeScript (strict mode)
-- SCSS for styling
-- ESLint + Prettier for code quality
-- Vitest for testing
-- GitHub Actions for CI/CD
-
-## Local Development
+## Development
 
 ```bash
 npm install
 npm run dev
 ```
 
-The dev server starts at **http://localhost:4321** by default.
+The development server runs at `http://localhost:4321`. Use `npm run dev:host` to test from another device on the local network.
 
-- Changes in `.astro`, `.ts`, and `.scss` files are applied automatically via HMR – no need to rebuild.
-- All three languages (EN, UK, DE) are available during development.
-- Press `Ctrl+C` to stop the server.
-- `npm run dev:host` starts the server on your local network (useful for testing from a phone or another PC).
-- `npm run dev:open` starts the dev server and opens the browser automatically.
-
-### Preview production builds
+## Verification
 
 ```bash
-# Default build > dist/
+npm run check
+npm run lint
+npm test
 npm run build
 npm run preview
-
-# GitHub Pages build > docs/
-npm run build:prod
-npm run preview:prod
+git diff --check
 ```
 
-- `npm run preview` serves `dist/` via Astro's built-in preview server.
-- `npm run preview:prod` serves `docs/` via a lightweight Node.js static server.
-- The dev server is not a production hosting solution.
+`npm run build` creates the deployable static site in `dist/`. `npm run preview` serves that production build locally.
 
-## Tests
+## Playlist Sources
 
-```bash
-npm test
-```
+Default playlists are read at runtime from the public [radiova-stations](https://github.com/radiova-app/radiova-stations) repository:
 
-## Project Structure
+- `generated/playlists-manifest.json`
+- `playlists/uk.m3u`
+- `playlists/en.m3u`
+- `playlists/de.m3u`
+- `playlists/global.m3u`
+- `playlists/all.m3u`
 
-```
-.
-├── .github/workflows/   # CI/CD
-├── public/              # Static assets
-├── scripts/             # Build helper scripts
-├── src/
-│   ├── components/      # Reusable components
-│   ├── layouts/         # Page layouts
-│   ├── pages/           # Route pages (en, de, uk)
-│   ├── services/        # API services
-│   ├── styles/          # SCSS tokens and globals
-│   ├── types/           # TypeScript types
-│   └── config/          # Site configuration
-├── tests/               # Test files
-└── ...config files
-```
+The browser loads the manifest before a selected playlist, validates the M3U content, verifies the manifest SHA-256 when available, and retains the last valid cached copy for offline use. Playlist updates therefore do not require rebuilding the website.
 
-## GitHub Pages Deployment
+## Local Data
 
-The site is automatically deployed to GitHub Pages on every push to the `main` branch via `.github/workflows/deploy.yml`.
+Radiova keeps user data in the browser only:
 
-## Related Repositories
+- IndexedDB: favorites, recently played stations, cached remote playlists, and custom playlists
+- local storage: player volume, mute state, and selected language
 
-- [radiova-releases](https://github.com/radiova-app/radiova-releases) – build artifacts and release metadata
+Custom playlists can be created, renamed, deleted, imported from M3U, and exported as M3U. Imported playlists keep complete station and endpoint data so they remain exportable. The Privacy page has a confirmed **Reset local data** action.
 
-## Project Status
+## PWA
 
-This project is in early development. The website structure is being set up, and no production release is available yet.
+The site includes a web app manifest, service worker, offline app shell cache, and maskable icons. Chromium-family browsers show the in-app install action after `beforeinstallprompt` becomes available.
+
+On iPhone or iPad, open the site in Safari, choose **Share**, then **Add to Home Screen**. Safari does not provide Chromium's install prompt.
+
+Audio playback is not cached. Audio analysis for the equalizer can be blocked by a station's CORS policy; playback continues with a static visualizer fallback.
+
+## Download Configuration
+
+`public/config/downloads.json` records the status and future URLs for PWA, browser extensions, and native applications. Keep unavailable release URLs empty until a real distribution exists.
+
+## GitHub Pages
+
+`.github/workflows/deploy.yml` runs checks, linting, tests, and `npm run build`, then uploads `dist/` to GitHub Pages. The workflow deploys only after a push to `main` or a manual GitHub Actions dispatch. This repository does not deploy automatically from local development commands.
+
+`astro.config.mjs` uses the root production URL `https://radiova-app.github.io`, so manifest and service-worker paths are root-relative for the organization site.
+
+## Scope
+
+The public website and the extension share public playlist formats, but extension migration is intentionally deferred to a separate follow-up. Website code must not depend on extension-only APIs.

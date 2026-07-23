@@ -1,0 +1,77 @@
+---
+import AppShell from "../../layouts/AppShell.astro";
+
+const lang = "uk";
+const currentPath = Astro.url.pathname;
+---
+
+<AppShell title="Про нас" description="Про Radiova" lang={lang} currentPath={currentPath}>
+  <section class="content-page">
+    <h1 class="content-page__title" data-i18n="about.title">Про Radiova</h1>
+    <div class="content-page__body">
+      <p data-i18n="about.intro">Radiova — це крос-платформний радіоплеєр, який дозволяє слухати станції з усього світу.</p>
+
+      <h2 data-i18n="playlists.title">Плейлисти</h2>
+      <p data-i18n="about.playlists">Стандартні плейлисти підібрані для українських, англійських, німецьких та світових станцій. Всі дані отримуються з відкритого репозиторію radiova-stations.</p>
+
+      <h2 data-i18n="privacy.title">Конфіденційність</h2>
+      <p data-i18n="about.privacy">Всі дані користувача зберігаються локально у вашому браузері.</p>
+
+      <h2>Посилання</h2>
+      <ul>
+        <li><a href="https://github.com/radiova-app/radiova-app.github.io">Вихідний код сайту</a></li>
+        <li><a href="https://github.com/radiova-app/radiova-stations">Дані станцій</a></li>
+        <li><a href="https://github.com/radiova-app/radiova-releases">Релізи</a></li>
+      </ul>
+    </div>
+  </section>
+</AppShell>
+
+<style lang="scss">
+  @use "tokens" as *;
+
+  .content-page {
+    padding: $spacing-lg;
+    overflow-y: auto;
+    height: 100%;
+  }
+
+  .content-page__title {
+    font-size: $font-size-xl;
+    font-weight: 700;
+    margin-bottom: $spacing-lg;
+    color: $text;
+  }
+
+  .content-page__body {
+    max-width: 700px;
+    line-height: $line-height-base;
+
+    p {
+      margin-bottom: $spacing-md;
+      color: $muted;
+    }
+
+    h2 {
+      font-size: $font-size-lg;
+      font-weight: 700;
+      margin-top: $spacing-xl;
+      margin-bottom: $spacing-md;
+      color: $text;
+    }
+
+    ul {
+      margin-left: $spacing-lg;
+      margin-bottom: $spacing-md;
+    }
+
+    li {
+      margin-bottom: $spacing-xs;
+      color: $muted;
+    }
+
+    a {
+      color: $accent;
+    }
+  }
+</style>
