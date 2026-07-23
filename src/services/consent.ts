@@ -33,6 +33,7 @@ let consentPromise: Promise<ConsentState> | null = null;
 
 const COPY = {
   en: {
+    language: "Consent dialog language",
     title: "Browser storage consent",
     description:
       "Radiova uses local browser storage to save settings, favorite stations, playlists, diagnostics, and offline data. No cookies, advertising cookies, or third-party analytics were found in this site.",
@@ -49,6 +50,7 @@ const COPY = {
     cleared: "Consent withdrawn. Local Radiova data was cleared.",
   },
   uk: {
+    language: "Мова вікна згоди",
     title: "Згода на використання сховища браузера",
     description:
       "Radiova використовує локальне сховище браузера для збереження налаштувань, улюблених станцій, плейлистів, діагностики та офлайн-даних. На цьому сайті не знайдено cookie, рекламних cookie або сторонньої аналітики.",
@@ -65,6 +67,7 @@ const COPY = {
     cleared: "Згоду відкликано. Локальні дані Radiova очищено.",
   },
   de: {
+    language: "Sprache des Einwilligungsdialogs",
     title: "Einwilligung zur Browserspeicherung",
     description:
       "Radiova verwendet lokalen Browserspeicher, um Einstellungen, Favoriten, Wiedergabelisten, Diagnosen und Offline-Daten zu speichern. Auf dieser Website wurden keine Cookies, Werbe-Cookies oder Drittanbieter-Analysen gefunden.",
@@ -87,6 +90,12 @@ type Locale = keyof typeof COPY;
 function locale(): Locale {
   const lang = document.documentElement.lang;
   return lang === "uk" || lang === "de" ? lang : "en";
+}
+
+function localizedPath(nextLocale: Locale): string {
+  const path = window.location.pathname.replace(/^\/(uk|de)(?=\/|$)/, "") || "/";
+  if (nextLocale === "en") return path;
+  return `/${nextLocale}${path === "/" ? "" : path}`;
 }
 
 function unknownState(): ConsentState {
@@ -239,23 +248,62 @@ function trapFocus(event: KeyboardEvent, dialog: HTMLElement): void {
   }
 }
 
+function updateConsentGateText(gate: HTMLElement, nextLocale: Locale): void {
+  const text = COPY[nextLocale];
+  const privacyHref = nextLocale === "en" ? "/privacy" : `/${nextLocale}/privacy`;
+  const title = gate.querySelector<HTMLElement>("#consent-title");
+  const description = gate.querySelector<HTMLElement>("#consent-description");
+  const limited = gate.querySelector<HTMLElement>("#consent-limited");
+  const privacy = gate.querySelector<HTMLAnchorElement>("#consent-privacy-link");
+  const accept = gate.querySelector<HTMLButtonElement>("#consent-accept");
+  const continuePrivate = gate.querySelector<HTMLButtonElement>("#consent-continue-private");
+  const switcher = gate.querySelector<HTMLElement>("#consent-language-switcher");
+  if (title) title.textContent = text.title;
+  if (description) description.textContent = text.description;
+  if (limited) limited.textContent = text.limited;
+  if (privacy) {
+    privacy.href = privacyHref;
+    privacy.textContent = text.privacy;
+  }
+  if (accept) accept.textContent = text.accept;
+  if (continuePrivate) continuePrivate.textContent = text.continuePrivate;
+  if (switcher) switcher.setAttribute("aria-label", text.language);
+  gate.querySelectorAll<HTMLAnchorElement>("[data-consent-locale]").forEach((link) => {
+    const linkLocale = link.dataset["consentLocale"] as Locale | undefined;
+    if (!linkLocale) return;
+    link.href = localizedPath(linkLocale);
+    if (linkLocale === nextLocale) {
+      link.setAttribute("aria-current", "true");
+    } else {
+      link.removeAttribute("aria-current");
+    }
+  });
+}
+
 function renderConsentGate(): HTMLElement {
-  const text = COPY[locale()];
-  const privacyHref = locale() === "en" ? "/privacy" : `/${locale()}/privacy`;
+  const currentLocale = locale();
+  const text = COPY[currentLocale];
+  const privacyHref = currentLocale === "en" ? "/privacy" : `/${currentLocale}/privacy`;
   const gate = document.createElement("div");
   gate.id = "consent-gate";
   gate.className = "consent-gate";
   gate.innerHTML = `<div class="consent-backdrop" data-consent-backdrop></div>
     <section class="consent-dialog" role="dialog" aria-modal="true" aria-labelledby="consent-title" aria-describedby="consent-description consent-limited" tabindex="-1">
+      <nav class="consent-language-switcher" id="consent-language-switcher" aria-label="${text.language}">
+        <a href="${localizedPath("en")}" class="consent-language-switcher__link" data-consent-locale="en">EN</a>
+        <a href="${localizedPath("de")}" class="consent-language-switcher__link" data-consent-locale="de">DE</a>
+        <a href="${localizedPath("uk")}" class="consent-language-switcher__link" data-consent-locale="uk">UK</a>
+      </nav>
       <h2 id="consent-title" tabindex="-1">${text.title}</h2>
       <p id="consent-description">${text.description}</p>
       <p id="consent-limited" class="consent-dialog__muted">${text.limited}</p>
-      <p class="consent-dialog__privacy-link"><a href="${privacyHref}">${text.privacy}</a></p>
+      <p class="consent-dialog__privacy-link"><a id="consent-privacy-link" href="${privacyHref}">${text.privacy}</a></p>
       <div class="consent-dialog__actions">
         <button id="consent-accept" class="button button--primary" type="button">${text.accept}</button>
         <button id="consent-continue-private" class="button button--secondary" type="button">${text.continuePrivate}</button>
       </div>
     </section>`;
+  updateConsentGateText(gate, currentLocale);
   return gate;
 }
 
@@ -279,6 +327,19 @@ export function initConsentGate(): void {
   const removeGate = (): void => {
     gate.remove();
   };
+
+  gate.querySelectorAll<HTMLAnchorElement>("[data-consent-locale]").forEach((link) => {
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      const nextLocale = link.dataset["consentLocale"] as Locale | undefined;
+      if (!nextLocale) return;
+      document.documentElement.lang = nextLocale;
+      const nextPath = localizedPath(nextLocale);
+      window.history.pushState({}, "", nextPath + window.location.search + window.location.hash);
+      updateConsentGateText(gate, nextLocale);
+      focusDialog(dialog);
+    });
+  });
 
   accept.addEventListener("click", () => {
     accept.disabled = true;

@@ -921,9 +921,10 @@ describe("stereo equalizer", () => {
     expect(eq).toContain("splitter.connect(analyserR, 1)");
   });
 
-  it("analysers connect to destination", () => {
-    expect(eq).toContain("analyserL.connect(audioCtx.destination)");
-    expect(eq).toContain("analyserR.connect(audioCtx.destination)");
+  it("routes destination through gain node, not analysers", () => {
+    expect(eq).toContain("gainNode.connect(audioCtx.destination)");
+    expect(eq).not.toContain("analyserL.connect(audioCtx.destination)");
+    expect(eq).not.toContain("analyserR.connect(audioCtx.destination)");
   });
 
   it("has real-stereo mode", () => {
@@ -1047,6 +1048,20 @@ describe("privacy consent gate", () => {
     expect(consent).toContain("consent-dialog__privacy-link");
     expect(consent).toContain("text.privacy");
     expect(globalScss).toContain(".consent-dialog__privacy-link");
+  });
+
+  it("has a pre-consent modal language switcher that does not resolve consent", () => {
+    expect(consent).toContain("consent-language-switcher");
+    expect(consent).toContain('data-consent-locale="en"');
+    expect(consent).toContain('data-consent-locale="de"');
+    expect(consent).toContain('data-consent-locale="uk"');
+    expect(consent).toContain("window.history.pushState");
+    expect(consent).toContain("updateConsentGateText(gate, nextLocale)");
+  });
+
+  it("does not persist language before consent", () => {
+    expect(consent).not.toContain('localStorage.setItem("radiova-lang"');
+    expect(consent).not.toContain("localStorage.setItem('radiova-lang'");
   });
 
   it("centers the consent heading", () => {
@@ -1209,20 +1224,24 @@ describe("persistent audio graph (equalizer refactor)", () => {
     expect(eq).toContain("rebindCanvases");
   });
 
-  it("does not close AudioContext in rebindCanvases", () => {
-    const ctxClose = eq.match(/audioCtx\.close\(\)/g);
-    expect(ctxClose ? ctxClose.length : 0).toBe(1);
+  it("does not close AudioContext during graph lifecycle", () => {
+    expect(eq).not.toContain("audioCtx.close()");
   });
 
-  it("has destroyGraph as the only close path", () => {
-    expect(eq).toContain("destroyGraph");
-    expect(eq).toContain("audioCtx.close()");
+  it("routes audible output through a gain node instead of analysers", () => {
+    expect(eq).toContain("let gainNode: GainNode | null");
+    expect(eq).toContain("gainNode.connect(audioCtx.destination)");
+    expect(eq).toContain("gainNode.connect(splitter)");
+    expect(eq).not.toContain("analyserL.connect(audioCtx.destination)");
+    expect(eq).not.toContain("analyserR.connect(audioCtx.destination)");
   });
 
-  it("clearGraph only called from destroyGraph, not from rebind", () => {
-    expect(eq).toContain("clearGraph()");
-    const clearGraphCalls = eq.match(/clearGraph\(\)/g);
-    expect(clearGraphCalls ? clearGraphCalls.length : 0).toBe(2);
+  it("exposes visualizer debug state for browser verification", () => {
+    expect(eq).toContain("__radiovaVisualizerDebug");
+    expect(eq).toContain("mediaElementSourceCount");
+    expect(eq).toContain("destinationConnected");
+    expect(eq).toContain("leftMax");
+    expect(eq).toContain("rightMax");
   });
 
   it("rebindCanvases implementation does not call clearGraph", () => {

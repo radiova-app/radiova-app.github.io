@@ -18,16 +18,49 @@ export interface SideVisualizerHandle {
   destroy: () => void;
 }
 
+export interface VisualizerDebugState {
+  audioElement: boolean;
+  audioContextState: AudioContextState | 'missing';
+  mediaElementSourceCount: number;
+  gainNodePresent: boolean;
+  channelSplitterPresent: boolean;
+  leftAnalyserPresent: boolean;
+  rightAnalyserPresent: boolean;
+  destinationConnected: boolean;
+  leftCanvas: boolean;
+  rightCanvas: boolean;
+  canvasSizes: { left: string | null; right: string | null; side: string | null };
+  animationLoopCount: number;
+  leftMax: number;
+  rightMax: number;
+  corsMode: string | null;
+  mode: EqMode;
+  rootCause: string | null;
+}
+
+declare global {
+  interface Window {
+    __radiovaVisualizerDebug?: VisualizerDebugState;
+  }
+}
+
 // Persistent audio graph (created once, survives navigation)
 let audioCtx: AudioContext | null = null;
 let source: MediaElementAudioSourceNode | null = null;
+let gainNode: GainNode | null = null;
 let splitter: ChannelSplitterNode | null = null;
 let analyserL: AnalyserNode | null = null;
 let analyserR: AnalyserNode | null = null;
 let graphConnected = false;
+let destinationConnected = false;
 let graphAudioElement: HTMLAudioElement | null = null;
 let eqMode: EqMode = 'unavailable';
 let modeLogged = false;
+let animationLoopCount = 0;
+let zeroFrameCount = 0;
+let leftMax = 0;
+let rightMax = 0;
+let rootCause: string | null = null;
 
 // View state (rebound per navigation)
 let canvasLeft: HTMLCanvasElement | null = null;
@@ -46,6 +79,40 @@ function logMode(mode: EqMode): void {
   modeLogged = true;
   const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
   if (isDev) console.log('equalizer mode: ' + mode);
+}
+
+function maxBin(dataArray: Uint8Array): number {
+  let max = 0;
+  for (const value of dataArray) {
+    if (value > max) max = value;
+  }
+  return max;
+}
+
+function updateDebug(): void {
+  window.__radiovaVisualizerDebug = {
+    audioElement: Boolean(graphAudioElement),
+    audioContextState: audioCtx?.state ?? 'missing',
+    mediaElementSourceCount: source ? 1 : 0,
+    gainNodePresent: Boolean(gainNode),
+    channelSplitterPresent: Boolean(splitter),
+    leftAnalyserPresent: Boolean(analyserL),
+    rightAnalyserPresent: Boolean(analyserR),
+    destinationConnected,
+    leftCanvas: Boolean(canvasLeft),
+    rightCanvas: Boolean(canvasRight),
+    canvasSizes: {
+      left: canvasLeft ? String(canvasLeft.width) + 'x' + String(canvasLeft.height) : null,
+      right: canvasRight ? String(canvasRight.width) + 'x' + String(canvasRight.height) : null,
+      side: canvasSide ? String(canvasSide.width) + 'x' + String(canvasSide.height) : null,
+    },
+    animationLoopCount,
+    leftMax,
+    rightMax,
+    corsMode: graphAudioElement?.crossOrigin || null,
+    mode: eqMode,
+    rootCause,
+  };
 }
 
 function ensureAudioContext(): AudioContext | null {
@@ -173,13 +240,16 @@ function drawStaticCanvas(c: CanvasRenderingContext2D): void {
 }
 
 function tick(): void {
+  animationLoopCount += 1;
   if (!isActive) {
     drawStatic();
+    updateDebug();
     return;
   }
 
   if (eqMode === 'paused' || eqMode === 'cors-blocked' || eqMode === 'unavailable') {
     drawStatic();
+    updateDebug();
     animFrameId = requestAnimationFrame(tick);
     return;
   }
@@ -187,6 +257,7 @@ function tick(): void {
   const bufferLength = (analyserL?.frequencyBinCount ?? 0);
   if (!bufferLength) {
     drawStatic();
+    updateDebug();
     animFrameId = requestAnimationFrame(tick);
     return;
   }
@@ -196,8 +267,18 @@ function tick(): void {
   if (analyserL) analyserL.getByteFrequencyData(dataL);
   if (analyserR) analyserR.getByteFrequencyData(dataR);
 
-  const hasDataL = dataL.some((v) => v > 0);
-  const hasDataR = dataR.some((v) => v > 0);
+  leftMax = maxBin(dataL);
+  rightMax = maxBin(dataR);
+  const hasDataL = leftMax > 0;
+  const hasDataR = rightMax > 0;
+
+  if (hasDataL || hasDataR) {
+    zeroFrameCount = 0;
+    rootCause = null;
+    eqMode = hasDataR ? 'real-stereo' : 'mono-fallback';
+  } else {
+    zeroFrameCount += 1;
+  }
 
   if (eqMode === 'mono-fallback') {
     if (ctxLeft && canvasLeft) drawBars(ctxLeft, dataL, bufferLength, false);
@@ -209,20 +290,24 @@ function tick(): void {
 
   if (ctxSide && canvasSide) drawSide(ctxSide, dataL);
 
-  if (!hasDataL && !hasDataR) {
+  if (!hasDataL && !hasDataR && zeroFrameCount > 24) {
     classifyMode();
   }
 
+  updateDebug();
   animFrameId = requestAnimationFrame(tick);
 }
 
 function classifyMode(): void {
   if (!audioCtx || !graphConnected) {
     eqMode = 'unavailable';
+    rootCause = 'audio graph is not connected';
   } else {
     eqMode = 'cors-blocked';
+    rootCause = 'analyser returned only zero data after graph connection';
   }
   logMode(eqMode);
+  updateDebug();
 }
 
 function ensureGraph(audioEl: HTMLAudioElement): boolean {
@@ -233,52 +318,54 @@ function ensureGraph(audioEl: HTMLAudioElement): boolean {
     }
     if (!audioCtx) { eqMode = 'unavailable'; return false; }
 
-    source = audioCtx.createMediaElementSource(audioEl);
+    if (source && graphAudioElement === audioEl) {
+      try { source.disconnect(); } catch { /* ignore */ }
+    } else {
+      source = audioCtx.createMediaElementSource(audioEl);
+    }
+    gainNode = audioCtx.createGain();
     splitter = audioCtx.createChannelSplitter(2);
     analyserL = audioCtx.createAnalyser();
     analyserR = audioCtx.createAnalyser();
     analyserL.fftSize = 128;
     analyserR.fftSize = 128;
 
-    source.connect(splitter);
+    source.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    gainNode.connect(splitter);
     splitter.connect(analyserL, 0);
     splitter.connect(analyserR, 1);
-    analyserL.connect(audioCtx.destination);
-    analyserR.connect(audioCtx.destination);
 
     graphConnected = true;
+    destinationConnected = true;
     graphAudioElement = audioEl;
     eqMode = 'real-stereo';
     modeLogged = false;
+    zeroFrameCount = 0;
+    rootCause = null;
+    updateDebug();
     logMode(eqMode);
     return true;
   } catch {
-    source = null;
+    if (source) { try { source.disconnect(); } catch { /* ignore */ } }
+    gainNode = null;
     splitter = null;
     analyserL = null;
     analyserR = null;
     graphConnected = false;
+    destinationConnected = false;
     eqMode = 'cors-blocked';
+    rootCause = 'media element source graph could not be created';
+    updateDebug();
     logMode(eqMode);
     return false;
   }
 }
 
-function clearGraph(): void {
-  if (source) { try { source.disconnect(); } catch { /* ignore */ } source = null; }
-  if (splitter) { try { splitter.disconnect(); } catch { /* ignore */ } splitter = null; }
-  if (analyserL) { try { analyserL.disconnect(); } catch { /* ignore */ } analyserL = null; }
-  if (analyserR) { try { analyserR.disconnect(); } catch { /* ignore */ } analyserR = null; }
-  graphConnected = false;
-  graphAudioElement = null;
-  eqMode = 'unavailable';
-  modeLogged = false;
-}
-
 function destroyGraph(): void {
   stopAnimation();
-  clearGraph();
-  if (audioCtx) { void audioCtx.close(); audioCtx = null; }
+  eqMode = 'paused';
+  updateDebug();
 }
 
 function stopAnimation(): void {
@@ -334,12 +421,14 @@ export function createEqualizer(left: HTMLCanvasElement, right: HTMLCanvasElemen
       }
       if (animFrameId) cancelAnimationFrame(animFrameId);
       animFrameId = requestAnimationFrame(tick);
+      updateDebug();
     },
 
     stop(): void {
       isActive = false;
       eqMode = 'paused';
       drawStatic();
+      updateDebug();
       if (animFrameId !== null) { cancelAnimationFrame(animFrameId); animFrameId = null; }
     },
 
@@ -348,6 +437,7 @@ export function createEqualizer(left: HTMLCanvasElement, right: HTMLCanvasElemen
       if (graphConnected && graphAudioElement === el) return;
       graphAudioElement = el;
       if (isActive && !graphConnected) ensureGraph(el);
+      updateDebug();
     },
 
     rebindCanvases(left: HTMLCanvasElement | null, right: HTMLCanvasElement | null): void {
@@ -356,6 +446,7 @@ export function createEqualizer(left: HTMLCanvasElement, right: HTMLCanvasElemen
       ctxLeft = left ? getCtx(left) : null;
       ctxRight = right ? getCtx(right) : null;
       drawStatic();
+      updateDebug();
     },
 
     resize(): void { drawStatic(); },

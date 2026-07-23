@@ -159,6 +159,24 @@ async function main() {
     await page.evaluate(() => Boolean(document.activeElement?.closest(".consent-dialog"))),
   );
 
+  await page.locator('[data-consent-locale="de"]').click();
+  check("pre-consent language switch updates URL", page.url().endsWith("/de"), page.url());
+  check(
+    "pre-consent language switch updates modal text",
+    (await page.locator("#consent-title").textContent()) === "Einwilligung zur Browserspeicherung",
+  );
+  check("pre-consent language switch keeps modal open", await page.locator("#consent-gate").isVisible());
+  check(
+    "pre-consent language switch does not resolve consent",
+    await page.evaluate(() => !window.__radiovaConsentResolved && document.body.classList.contains("consent-blocked")),
+  );
+  await page.locator('[data-consent-locale="uk"]').click();
+  check("pre-consent language switch returns to Ukrainian URL", page.url().endsWith("/uk"), page.url());
+  check(
+    "pre-consent language switch returns Ukrainian text",
+    (await page.locator("#consent-title").textContent()) === "Згода на використання сховища браузера",
+  );
+
   await page.locator("#dashboard-play-toggle").click({ force: true });
   await page.waitForTimeout(300);
   const preProbe = await page.evaluate(() => window.__radiovaConsentProbe);
