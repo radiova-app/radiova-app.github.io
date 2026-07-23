@@ -5,7 +5,14 @@ export interface EqualizerHandle {
   stop: () => void;
   setAudioElement: (el: HTMLAudioElement | null) => void;
   resize: () => void;
-  rebindCanvases: (left: HTMLCanvasElement | null, right: HTMLCanvasElement | null) => void;
+  rebindCanvases: (
+    top: HTMLCanvasElement | null,
+    bottom: HTMLCanvasElement | null,
+    side?: HTMLCanvasElement | null,
+  ) => void;
+  rebindSideCanvas: (side: HTMLCanvasElement | null) => void;
+  syncWithCurrentPlaybackState: (isPlaying: boolean) => void;
+  setCurrentStationId: (stationId: string | null) => void;
   destroy: () => void;
   prepare: () => void;
   getMode: () => EqMode;
@@ -19,22 +26,34 @@ export interface SideVisualizerHandle {
 }
 
 export interface VisualizerDebugState {
+  mode: EqMode;
   audioElement: boolean;
   audioContextState: AudioContextState | 'missing';
+  sourceCreated: boolean;
+  splitterCreated: boolean;
   mediaElementSourceCount: number;
   gainNodePresent: boolean;
   channelSplitterPresent: boolean;
   leftAnalyserPresent: boolean;
   rightAnalyserPresent: boolean;
   destinationConnected: boolean;
+  topCanvasBound: boolean;
+  bottomCanvasBound: boolean;
+  sideCanvasBound: boolean;
   leftCanvas: boolean;
   rightCanvas: boolean;
-  canvasSizes: { left: string | null; right: string | null; side: string | null };
+  canvasSizes: { top: string | null; bottom: string | null; side: string | null };
   animationLoopCount: number;
+  animationFrameActive: boolean;
   leftMax: number;
   rightMax: number;
+  topMax: number;
+  bottomMax: number;
+  sideMax: number;
+  currentStationId: string | null;
+  audioPaused: boolean | null;
+  canvasGeneration: number;
   corsMode: string | null;
-  mode: EqMode;
   rootCause: string | null;
 }
 
@@ -44,35 +63,67 @@ declare global {
   }
 }
 
-// Persistent audio graph (created once, survives navigation)
-let audioCtx: AudioContext | null = null;
-let source: MediaElementAudioSourceNode | null = null;
-let gainNode: GainNode | null = null;
-let splitter: ChannelSplitterNode | null = null;
-let analyserL: AnalyserNode | null = null;
-let analyserR: AnalyserNode | null = null;
-let graphConnected = false;
-let destinationConnected = false;
-let graphAudioElement: HTMLAudioElement | null = null;
+interface PersistentVisualizerGraph {
+  audioCtx: AudioContext | null;
+  source: MediaElementAudioSourceNode | null;
+  gainNode: GainNode | null;
+  splitter: ChannelSplitterNode | null;
+  analyserL: AnalyserNode | null;
+  analyserR: AnalyserNode | null;
+  connected: boolean;
+  destinationConnected: boolean;
+  audioElement: HTMLAudioElement | null;
+  unloadBound: boolean;
+}
+
+interface VisualizerViews {
+  topCanvas: HTMLCanvasElement | null;
+  bottomCanvas: HTMLCanvasElement | null;
+  sideCanvas: HTMLCanvasElement | null;
+  topCtx: CanvasRenderingContext2D | null;
+  bottomCtx: CanvasRenderingContext2D | null;
+  sideCtx: CanvasRenderingContext2D | null;
+  resizeObserver: ResizeObserver | null;
+  rafId: number | null;
+  canvasGeneration: number;
+}
+
+const graph: PersistentVisualizerGraph = {
+  audioCtx: null,
+  source: null,
+  gainNode: null,
+  splitter: null,
+  analyserL: null,
+  analyserR: null,
+  connected: false,
+  destinationConnected: false,
+  audioElement: null,
+  unloadBound: false,
+};
+
+const views: VisualizerViews = {
+  topCanvas: null,
+  bottomCanvas: null,
+  sideCanvas: null,
+  topCtx: null,
+  bottomCtx: null,
+  sideCtx: null,
+  resizeObserver: null,
+  rafId: null,
+  canvasGeneration: 0,
+};
+
+let isActive = false;
+let reducedMotion = false;
 let eqMode: EqMode = 'unavailable';
 let modeLogged = false;
 let animationLoopCount = 0;
 let zeroFrameCount = 0;
-let leftMax = 0;
-let rightMax = 0;
+let topMax = 0;
+let bottomMax = 0;
+let sideMax = 0;
+let currentStationId: string | null = null;
 let rootCause: string | null = null;
-
-// View state (rebound per navigation)
-let canvasLeft: HTMLCanvasElement | null = null;
-let canvasRight: HTMLCanvasElement | null = null;
-let ctxLeft: CanvasRenderingContext2D | null = null;
-let ctxRight: CanvasRenderingContext2D | null = null;
-let canvasSide: HTMLCanvasElement | null = null;
-let ctxSide: CanvasRenderingContext2D | null = null;
-
-let isActive = false;
-let reducedMotion = false;
-let animFrameId: number | null = null;
 
 function logMode(mode: EqMode): void {
   if (modeLogged) return;
@@ -91,50 +142,89 @@ function maxBin(dataArray: Uint8Array): number {
 
 function updateDebug(): void {
   window.__radiovaVisualizerDebug = {
-    audioElement: Boolean(graphAudioElement),
-    audioContextState: audioCtx?.state ?? 'missing',
-    mediaElementSourceCount: source ? 1 : 0,
-    gainNodePresent: Boolean(gainNode),
-    channelSplitterPresent: Boolean(splitter),
-    leftAnalyserPresent: Boolean(analyserL),
-    rightAnalyserPresent: Boolean(analyserR),
-    destinationConnected,
-    leftCanvas: Boolean(canvasLeft),
-    rightCanvas: Boolean(canvasRight),
+    mode: eqMode,
+    audioElement: Boolean(graph.audioElement),
+    audioContextState: graph.audioCtx?.state ?? 'missing',
+    sourceCreated: Boolean(graph.source),
+    splitterCreated: Boolean(graph.splitter),
+    mediaElementSourceCount: graph.source ? 1 : 0,
+    gainNodePresent: Boolean(graph.gainNode),
+    channelSplitterPresent: Boolean(graph.splitter),
+    leftAnalyserPresent: Boolean(graph.analyserL),
+    rightAnalyserPresent: Boolean(graph.analyserR),
+    destinationConnected: graph.destinationConnected,
+    topCanvasBound: Boolean(views.topCanvas),
+    bottomCanvasBound: Boolean(views.bottomCanvas),
+    sideCanvasBound: Boolean(views.sideCanvas),
+    leftCanvas: Boolean(views.topCanvas),
+    rightCanvas: Boolean(views.bottomCanvas),
     canvasSizes: {
-      left: canvasLeft ? String(canvasLeft.width) + 'x' + String(canvasLeft.height) : null,
-      right: canvasRight ? String(canvasRight.width) + 'x' + String(canvasRight.height) : null,
-      side: canvasSide ? String(canvasSide.width) + 'x' + String(canvasSide.height) : null,
+      top: views.topCanvas ? String(views.topCanvas.width) + 'x' + String(views.topCanvas.height) : null,
+      bottom: views.bottomCanvas ? String(views.bottomCanvas.width) + 'x' + String(views.bottomCanvas.height) : null,
+      side: views.sideCanvas ? String(views.sideCanvas.width) + 'x' + String(views.sideCanvas.height) : null,
     },
     animationLoopCount,
-    leftMax,
-    rightMax,
-    corsMode: graphAudioElement?.crossOrigin || null,
-    mode: eqMode,
+    animationFrameActive: views.rafId !== null,
+    leftMax: topMax,
+    rightMax: bottomMax,
+    topMax,
+    bottomMax,
+    sideMax,
+    currentStationId,
+    audioPaused: graph.audioElement ? graph.audioElement.paused : null,
+    canvasGeneration: views.canvasGeneration,
+    corsMode: graph.audioElement?.crossOrigin || null,
     rootCause,
   };
 }
 
 function ensureAudioContext(): AudioContext | null {
   try {
-    if (!audioCtx) {
-      audioCtx = new AudioContext();
+    if (!graph.audioCtx) {
+      graph.audioCtx = new AudioContext();
     }
-    if (audioCtx.state === 'suspended') {
-      void audioCtx.resume();
+    if (graph.audioCtx.state === 'suspended') {
+      void graph.audioCtx.resume();
     }
-    return audioCtx;
+    return graph.audioCtx;
   } catch {
     return null;
   }
 }
 
 function resumeAudioContext(): Promise<void> {
-  const ctx = audioCtx;
+  const ctx = graph.audioCtx;
   if (ctx && ctx.state === 'suspended') {
     return ctx.resume().then(() => undefined).catch(() => undefined);
   }
   return Promise.resolve();
+}
+
+function resizeCanvasToDisplaySize(canvas: HTMLCanvasElement): void {
+  const ratio = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  const width = Math.max(1, Math.round(rect.width * ratio));
+  const height = Math.max(1, Math.round(rect.height * ratio));
+  if (canvas.width !== width || canvas.height !== height) {
+    canvas.width = width;
+    canvas.height = height;
+  }
+}
+
+function observeCanvases(): void {
+  views.resizeObserver?.disconnect();
+  views.resizeObserver = null;
+  const targets = [views.topCanvas, views.bottomCanvas, views.sideCanvas].filter((canvas): canvas is HTMLCanvasElement => {
+    return Boolean(canvas);
+  });
+  for (const canvas of targets) resizeCanvasToDisplaySize(canvas);
+  if (!('ResizeObserver' in window) || targets.length === 0) return;
+  views.resizeObserver = new ResizeObserver(() => {
+    for (const canvas of targets) resizeCanvasToDisplaySize(canvas);
+    drawStatic();
+    updateDebug();
+  });
+  for (const canvas of targets) views.resizeObserver.observe(canvas);
 }
 
 function getCtx(canvas: HTMLCanvasElement | null): CanvasRenderingContext2D | null {
@@ -142,7 +232,7 @@ function getCtx(canvas: HTMLCanvasElement | null): CanvasRenderingContext2D | nu
   return canvas.getContext('2d') || null;
 }
 
-function drawBars(c: CanvasRenderingContext2D, dataArray: Uint8Array, bufferLength: number, mirrorY: boolean): void {
+function drawBars(c: CanvasRenderingContext2D, dataArray: Uint8Array, bufferLength: number, growFromTop: boolean): void {
   const w = c.canvas.width;
   const h = c.canvas.height;
   c.clearRect(0, 0, w, h);
@@ -159,8 +249,8 @@ function drawBars(c: CanvasRenderingContext2D, dataArray: Uint8Array, bufferLeng
     const pct = Math.max(0, Math.min(1, value / 255));
     const barH = Math.max(2, pct * (h - 3));
     const x = i * barWidth;
-    const y = mirrorY ? 0 : h - barH;
-    const gradient = c.createLinearGradient(0, mirrorY ? 0 : y, 0, mirrorY ? barH : h);
+    const y = growFromTop ? 0 : h - barH;
+    const gradient = c.createLinearGradient(0, growFromTop ? 0 : y, 0, growFromTop ? barH : h);
     gradient.addColorStop(0, '#f79a42');
     gradient.addColorStop(1, '#34d399');
     c.fillStyle = gradient;
@@ -219,12 +309,12 @@ function drawSide(c: CanvasRenderingContext2D, dataArray: Uint8Array): void {
 }
 
 function drawStatic(): void {
-  if (ctxLeft && canvasLeft) drawStaticCanvas(ctxLeft);
-  if (ctxRight && canvasRight) drawStaticCanvas(ctxRight);
-  if (ctxSide && canvasSide) drawSideStatic(ctxSide);
+  if (views.topCtx && views.topCanvas) drawStaticCanvas(views.topCtx, true);
+  if (views.bottomCtx && views.bottomCanvas) drawStaticCanvas(views.bottomCtx, false);
+  if (views.sideCtx && views.sideCanvas) drawSideStatic(views.sideCtx);
 }
 
-function drawStaticCanvas(c: CanvasRenderingContext2D): void {
+function drawStaticCanvas(c: CanvasRenderingContext2D, growFromTop = false): void {
   const w = c.canvas.width;
   const h = c.canvas.height;
   c.clearRect(0, 0, w, h);
@@ -235,7 +325,7 @@ function drawStaticCanvas(c: CanvasRenderingContext2D): void {
   for (let i = 0; i < barCount; i++) {
     const x = i * barWidth;
     c.fillStyle = '#1f2a44';
-    c.fillRect(x + 0.7, h - 3, Math.max(1.5, barWidth - 1.4), 3);
+    c.fillRect(x + 0.7, growFromTop ? 0 : h - 3, Math.max(1.5, barWidth - 1.4), 3);
   }
 }
 
@@ -250,56 +340,60 @@ function tick(): void {
   if (eqMode === 'paused' || eqMode === 'cors-blocked' || eqMode === 'unavailable') {
     drawStatic();
     updateDebug();
-    animFrameId = requestAnimationFrame(tick);
+    views.rafId = requestAnimationFrame(tick);
     return;
   }
 
-  const bufferLength = (analyserL?.frequencyBinCount ?? 0);
+  const bufferLength = (graph.analyserL?.frequencyBinCount ?? 0);
   if (!bufferLength) {
     drawStatic();
     updateDebug();
-    animFrameId = requestAnimationFrame(tick);
+    views.rafId = requestAnimationFrame(tick);
     return;
   }
 
   const dataL = new Uint8Array(bufferLength);
   const dataR = new Uint8Array(bufferLength);
-  if (analyserL) analyserL.getByteFrequencyData(dataL);
-  if (analyserR) analyserR.getByteFrequencyData(dataR);
+  if (graph.analyserL) graph.analyserL.getByteFrequencyData(dataL);
+  if (graph.analyserR) graph.analyserR.getByteFrequencyData(dataR);
 
-  leftMax = maxBin(dataL);
-  rightMax = maxBin(dataR);
+  const leftMax = maxBin(dataL);
+  const rightMax = maxBin(dataR);
   const hasDataL = leftMax > 0;
   const hasDataR = rightMax > 0;
+  const topData = hasDataL || !hasDataR ? dataL : dataR;
+  const bottomData = hasDataR || !hasDataL ? dataR : dataL;
+  topMax = maxBin(topData);
+  bottomMax = maxBin(bottomData);
+  const sideData = new Uint8Array(bufferLength);
+  for (let i = 0; i < bufferLength; i += 1) {
+    sideData[i] = Math.max(dataL[i] ?? 0, dataR[i] ?? 0);
+  }
+  sideMax = maxBin(sideData);
 
   if (hasDataL || hasDataR) {
     zeroFrameCount = 0;
     rootCause = null;
-    eqMode = hasDataR ? 'real-stereo' : 'mono-fallback';
+    eqMode = hasDataL && hasDataR ? 'real-stereo' : 'mono-fallback';
   } else {
     zeroFrameCount += 1;
   }
 
-  if (eqMode === 'mono-fallback') {
-    if (ctxLeft && canvasLeft) drawBars(ctxLeft, dataL, bufferLength, false);
-    if (ctxRight && canvasRight) drawBars(ctxRight, dataL, bufferLength, true);
-  } else {
-    if (ctxLeft && canvasLeft) drawBars(ctxLeft, dataL, bufferLength, false);
-    if (ctxRight && canvasRight) drawBars(ctxRight, dataR, bufferLength, true);
-  }
+  if (views.topCtx && views.topCanvas) drawBars(views.topCtx, topData, bufferLength, true);
+  if (views.bottomCtx && views.bottomCanvas) drawBars(views.bottomCtx, bottomData, bufferLength, false);
 
-  if (ctxSide && canvasSide) drawSide(ctxSide, dataL);
+  if (views.sideCtx && views.sideCanvas) drawSide(views.sideCtx, sideData);
 
   if (!hasDataL && !hasDataR && zeroFrameCount > 24) {
     classifyMode();
   }
 
+  views.rafId = requestAnimationFrame(tick);
   updateDebug();
-  animFrameId = requestAnimationFrame(tick);
 }
 
 function classifyMode(): void {
-  if (!audioCtx || !graphConnected) {
+  if (!graph.audioCtx || !graph.connected) {
     eqMode = 'unavailable';
     rootCause = 'audio graph is not connected';
   } else {
@@ -311,34 +405,35 @@ function classifyMode(): void {
 }
 
 function ensureGraph(audioEl: HTMLAudioElement): boolean {
-  if (graphConnected && source && source.mediaElement === audioEl) return true;
+  if (graph.connected && graph.source && graph.audioElement === audioEl) return true;
   try {
-    if (!audioCtx) {
-      audioCtx = ensureAudioContext();
+    const ctx = ensureAudioContext();
+    if (!ctx) { eqMode = 'unavailable'; return false; }
+    if (graph.source && graph.audioElement !== audioEl) {
+      eqMode = 'unavailable';
+      rootCause = 'persistent audio element changed after media source creation';
+      updateDebug();
+      return false;
     }
-    if (!audioCtx) { eqMode = 'unavailable'; return false; }
 
-    if (source && graphAudioElement === audioEl) {
-      try { source.disconnect(); } catch { /* ignore */ }
-    } else {
-      source = audioCtx.createMediaElementSource(audioEl);
-    }
-    gainNode = audioCtx.createGain();
-    splitter = audioCtx.createChannelSplitter(2);
-    analyserL = audioCtx.createAnalyser();
-    analyserR = audioCtx.createAnalyser();
-    analyserL.fftSize = 128;
-    analyserR.fftSize = 128;
+    if (!graph.source) graph.source = ctx.createMediaElementSource(audioEl);
+    if (!graph.gainNode) graph.gainNode = ctx.createGain();
+    if (!graph.splitter) graph.splitter = ctx.createChannelSplitter(2);
+    if (!graph.analyserL) graph.analyserL = ctx.createAnalyser();
+    if (!graph.analyserR) graph.analyserR = ctx.createAnalyser();
+    graph.analyserL.fftSize = 128;
+    graph.analyserR.fftSize = 128;
 
-    source.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-    gainNode.connect(splitter);
-    splitter.connect(analyserL, 0);
-    splitter.connect(analyserR, 1);
+    graph.source.connect(graph.gainNode);
+    graph.gainNode.connect(ctx.destination);
+    graph.gainNode.connect(graph.splitter);
+    graph.splitter.connect(graph.analyserL, 0);
+    graph.splitter.connect(graph.analyserR, 1);
 
-    graphConnected = true;
-    destinationConnected = true;
-    graphAudioElement = audioEl;
+    graph.connected = true;
+    graph.destinationConnected = true;
+    graph.audioElement = audioEl;
+    bindFinalUnloadTeardown();
     eqMode = 'real-stereo';
     modeLogged = false;
     zeroFrameCount = 0;
@@ -347,13 +442,8 @@ function ensureGraph(audioEl: HTMLAudioElement): boolean {
     logMode(eqMode);
     return true;
   } catch {
-    if (source) { try { source.disconnect(); } catch { /* ignore */ } }
-    gainNode = null;
-    splitter = null;
-    analyserL = null;
-    analyserR = null;
-    graphConnected = false;
-    destinationConnected = false;
+    graph.connected = Boolean(graph.source && graph.gainNode && graph.splitter && graph.analyserL && graph.analyserR);
+    graph.destinationConnected = graph.connected;
     eqMode = 'cors-blocked';
     rootCause = 'media element source graph could not be created';
     updateDebug();
@@ -368,15 +458,34 @@ function destroyGraph(): void {
   updateDebug();
 }
 
+function disconnectGraph(): void {
+  stopAnimation();
+  if (graph.source) { try { graph.source.disconnect(); } catch { /* ignore */ } }
+  if (graph.gainNode) { try { graph.gainNode.disconnect(); } catch { /* ignore */ } }
+  if (graph.splitter) { try { graph.splitter.disconnect(); } catch { /* ignore */ } }
+  if (graph.analyserL) { try { graph.analyserL.disconnect(); } catch { /* ignore */ } }
+  if (graph.analyserR) { try { graph.analyserR.disconnect(); } catch { /* ignore */ } }
+  if (graph.audioCtx) { void graph.audioCtx.close(); }
+}
+
+function bindFinalUnloadTeardown(): void {
+  if (graph.unloadBound) return;
+  graph.unloadBound = true;
+  window.addEventListener('pagehide', disconnectGraph, { once: true });
+}
+
 function stopAnimation(): void {
   isActive = false;
-  if (animFrameId !== null) { cancelAnimationFrame(animFrameId); animFrameId = null; }
+  if (views.rafId !== null) { cancelAnimationFrame(views.rafId); views.rafId = null; }
 }
 
 export function createSideVisualizer(canvasEl: HTMLCanvasElement): SideVisualizerHandle {
-  canvasSide = canvasEl;
-  ctxSide = getCtx(canvasSide);
-  if (ctxSide) drawSideStatic(ctxSide);
+  views.sideCanvas = canvasEl;
+  views.sideCtx = getCtx(views.sideCanvas);
+  observeCanvases();
+  if (views.sideCtx) drawSideStatic(views.sideCtx);
+  views.canvasGeneration += 1;
+  updateDebug();
 
   return {
     setAudioElement(el: HTMLAudioElement | null): void {
@@ -384,20 +493,25 @@ export function createSideVisualizer(canvasEl: HTMLCanvasElement): SideVisualize
     },
     start(): void { /* side uses same tick loop */ },
     stop(): void {
-      if (ctxSide && canvasSide) drawSideStatic(ctxSide);
+      if (views.sideCtx && views.sideCanvas) drawSideStatic(views.sideCtx);
     },
     destroy(): void {
-      canvasSide = null;
-      ctxSide = null;
+      views.sideCanvas = null;
+      views.sideCtx = null;
+      observeCanvases();
+      views.canvasGeneration += 1;
+      updateDebug();
     },
   };
 }
 
 export function createEqualizer(left: HTMLCanvasElement, right: HTMLCanvasElement): EqualizerHandle {
-  canvasLeft = left;
-  canvasRight = right;
-  ctxLeft = getCtx(canvasLeft);
-  ctxRight = getCtx(canvasRight);
+  views.topCanvas = left;
+  views.bottomCanvas = right;
+  views.topCtx = getCtx(views.topCanvas);
+  views.bottomCtx = getCtx(views.bottomCanvas);
+  views.canvasGeneration += 1;
+  observeCanvases();
   reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const handle: EqualizerHandle = {
@@ -410,17 +524,20 @@ export function createEqualizer(left: HTMLCanvasElement, right: HTMLCanvasElemen
     },
 
     start(): void {
-      if (isActive) return;
+      if (isActive && views.rafId !== null) return;
       isActive = true;
       if (reducedMotion) return;
-      if (graphAudioElement && !graphConnected) {
-        ensureGraph(graphAudioElement);
+      if (graph.audioElement && !graph.connected) {
+        ensureGraph(graph.audioElement);
       }
-      if (eqMode === 'unavailable') {
+      if (graph.connected && (eqMode === 'paused' || eqMode === 'unavailable' || eqMode === 'cors-blocked')) {
+        eqMode = 'real-stereo';
+        rootCause = null;
+      } else if (eqMode === 'unavailable') {
         classifyMode();
       }
-      if (animFrameId) cancelAnimationFrame(animFrameId);
-      animFrameId = requestAnimationFrame(tick);
+      if (views.rafId !== null) cancelAnimationFrame(views.rafId);
+      views.rafId = requestAnimationFrame(tick);
       updateDebug();
     },
 
@@ -429,35 +546,70 @@ export function createEqualizer(left: HTMLCanvasElement, right: HTMLCanvasElemen
       eqMode = 'paused';
       drawStatic();
       updateDebug();
-      if (animFrameId !== null) { cancelAnimationFrame(animFrameId); animFrameId = null; }
+      if (views.rafId !== null) { cancelAnimationFrame(views.rafId); views.rafId = null; }
     },
 
     setAudioElement(el: HTMLAudioElement | null): void {
       if (!el) return;
-      if (graphConnected && graphAudioElement === el) return;
-      graphAudioElement = el;
-      if (isActive && !graphConnected) ensureGraph(el);
+      if (graph.connected && graph.audioElement === el) return;
+      graph.audioElement = el;
+      ensureGraph(el);
       updateDebug();
     },
 
-    rebindCanvases(left: HTMLCanvasElement | null, right: HTMLCanvasElement | null): void {
-      canvasLeft = left;
-      canvasRight = right;
-      ctxLeft = left ? getCtx(left) : null;
-      ctxRight = right ? getCtx(right) : null;
+    rebindCanvases(
+      top: HTMLCanvasElement | null,
+      bottom: HTMLCanvasElement | null,
+      side?: HTMLCanvasElement | null,
+    ): void {
+      views.topCanvas = top;
+      views.bottomCanvas = bottom;
+      views.topCtx = top ? getCtx(top) : null;
+      views.bottomCtx = bottom ? getCtx(bottom) : null;
+      if (side !== undefined) {
+        views.sideCanvas = side;
+        views.sideCtx = side ? getCtx(side) : null;
+      }
+      views.canvasGeneration += 1;
+      observeCanvases();
       drawStatic();
       updateDebug();
     },
 
-    resize(): void { drawStatic(); },
+    rebindSideCanvas(side: HTMLCanvasElement | null): void {
+      views.sideCanvas = side;
+      views.sideCtx = side ? getCtx(side) : null;
+      views.canvasGeneration += 1;
+      observeCanvases();
+      drawStatic();
+      updateDebug();
+    },
+
+    syncWithCurrentPlaybackState(isPlaying: boolean): void {
+      if (isPlaying) {
+        handle.start();
+      } else {
+        handle.stop();
+      }
+    },
+
+    setCurrentStationId(stationId: string | null): void {
+      currentStationId = stationId;
+      updateDebug();
+    },
+
+    resize(): void {
+      observeCanvases();
+      drawStatic();
+      updateDebug();
+    },
 
     destroy(): void {
       destroyGraph();
-      canvasLeft = null;
-      canvasRight = null;
-      ctxLeft = null;
-      ctxRight = null;
-      graphAudioElement = null;
+      views.topCanvas = null;
+      views.bottomCanvas = null;
+      views.topCtx = null;
+      views.bottomCtx = null;
     },
   };
 

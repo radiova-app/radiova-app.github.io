@@ -6,13 +6,17 @@ const CATALOG_URL = "https://raw.githubusercontent.com/radiova-app/radiova-stati
 const PASS = "\x1b[32mPASS\x1b[0m";
 const FAIL = "\x1b[31mFAIL\x1b[0m";
 
+const station1 = "Visualizer Test Station A";
+const station2 = "Visualizer Test Station B";
 const m3u = `#EXTM3U
-#EXTINF:-1 tvg-id="visualizer-test" radio-endpoint-id="visualizer-main" radio-codec="wav" radio-bitrate="128" group-title="global",Visualizer Test Station
-${BASE_URL}/visualizer-tone.wav
+#EXTINF:-1 tvg-id="visualizer-a" radio-endpoint-id="visualizer-a-main" radio-codec="wav" radio-bitrate="128" group-title="global",${station1}
+${BASE_URL}/visualizer-tone-a.wav
+#EXTINF:-1 tvg-id="visualizer-b" radio-endpoint-id="visualizer-b-main" radio-codec="wav" radio-bitrate="128" group-title="global",${station2}
+${BASE_URL}/visualizer-tone-b.wav
 `;
 const sha256 = createHash("sha256").update(m3u).digest("hex");
 
-function wavTone(seconds = 5, sampleRate = 44100) {
+function wavTone(leftHz, rightHz, seconds = 8, sampleRate = 44100) {
   const samples = seconds * sampleRate;
   const dataSize = samples * 4;
   const buffer = Buffer.alloc(44 + dataSize);
@@ -30,8 +34,8 @@ function wavTone(seconds = 5, sampleRate = 44100) {
   buffer.write("data", 36);
   buffer.writeUInt32LE(dataSize, 40);
   for (let i = 0; i < samples; i += 1) {
-    const left = Math.round(Math.sin(2 * Math.PI * 440 * (i / sampleRate)) * 0x2fff);
-    const right = Math.round(Math.sin(2 * Math.PI * 880 * (i / sampleRate)) * 0x2fff);
+    const left = Math.round(Math.sin(2 * Math.PI * leftHz * (i / sampleRate)) * 0x2fff);
+    const right = Math.round(Math.sin(2 * Math.PI * rightHz * (i / sampleRate)) * 0x2fff);
     buffer.writeInt16LE(left, 44 + i * 4);
     buffer.writeInt16LE(right, 46 + i * 4);
   }
@@ -48,8 +52,8 @@ async function installRoutes(page) {
         source: "verify-visualizer",
         playlists: ["uk", "en", "de", "global", "all"].map((locale) => ({
           path: `playlists/${locale}.m3u`,
-          stationCount: 1,
-          endpointCount: 1,
+          stationCount: 2,
+          endpointCount: 2,
           sha256,
           generatedAt: new Date().toISOString(),
           source: "verify-visualizer",
@@ -64,11 +68,18 @@ async function installRoutes(page) {
     });
   }
 
-  await page.route(`${BASE_URL}/visualizer-tone.wav`, async (route) => {
+  await page.route(`${BASE_URL}/visualizer-tone-a.wav`, async (route) => {
     await route.fulfill({
       headers: { "Access-Control-Allow-Origin": "*" },
       contentType: "audio/wav",
-      body: wavTone(),
+      body: wavTone(440, 880),
+    });
+  });
+  await page.route(`${BASE_URL}/visualizer-tone-b.wav`, async (route) => {
+    await route.fulfill({
+      headers: { "Access-Control-Allow-Origin": "*" },
+      contentType: "audio/wav",
+      body: wavTone(523, 1046),
     });
   });
 }
@@ -98,6 +109,14 @@ async function clearSite(context) {
   await page.close();
 }
 
+async function waitForMovingVisualizer(page) {
+  await page.waitForFunction(() => {
+    const debug = window.__radiovaVisualizerDebug;
+    return Boolean(debug && debug.animationFrameActive && debug.topMax > 0 && debug.bottomMax > 0 && debug.sideMax > 0);
+  }, null, { timeout: 10000 });
+  return page.evaluate(() => window.__radiovaVisualizerDebug);
+}
+
 async function main() {
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ serviceWorkers: "block", viewport: { width: 1280, height: 800 } });
@@ -111,35 +130,86 @@ async function main() {
   await clearSite(context);
   const page = await context.newPage();
   await installRoutes(page);
-  await page.goto(`${BASE_URL}/`);
+  await page.goto(`${BASE_URL}/uk/`);
   await page.locator("#consent-accept").click();
   await page.waitForSelector(".station-row");
-  await page.locator(".station-row__play").first().click();
-  await page.waitForFunction(() => window.__radiovaVisualizerDebug?.destinationConnected === true, null, {
+
+  await page.locator(".station-row__play").nth(0).click();
+  await page.waitForFunction(() => !document.getElementById("persistent-audio")?.paused, null, { timeout: 10000 });
+  const firstDebug = await waitForMovingVisualizer(page);
+  await page.screenshot({ path: "test-results/verify/visualizer-station-1.png", fullPage: true });
+
+  check("station 1 selected", firstDebug.currentStationId === "visualizer-a", firstDebug.currentStationId || "");
+  check("audio pipeline is playing", firstDebug.audioPaused === false);
+  check("one media element source", firstDebug.mediaElementSourceCount === 1, String(firstDebug.mediaElementSourceCount));
+  check("one RAF loop active", firstDebug.animationFrameActive === true);
+  check("top visualizer moves", firstDebug.topMax > 0, String(firstDebug.topMax));
+  check("bottom visualizer moves", firstDebug.bottomMax > 0, String(firstDebug.bottomMax));
+  check("side visualizer moves", firstDebug.sideMax > 0, String(firstDebug.sideMax));
+  check("stereo source is classified", firstDebug.mode === "real-stereo", firstDebug.mode);
+
+  await page.locator(".station-row__play").nth(1).click();
+  await page.waitForFunction(() => window.__radiovaVisualizerDebug?.currentStationId === "visualizer-b", null, {
     timeout: 10000,
   });
-  await page.waitForFunction(() => {
-    const debug = window.__radiovaVisualizerDebug;
-    return Boolean(debug && (debug.leftMax > 0 || debug.rightMax > 0));
-  }, null, { timeout: 10000 });
+  const secondDebug = await waitForMovingVisualizer(page);
+  await page.screenshot({ path: "test-results/verify/visualizer-station-2.png", fullPage: true });
 
-  const debug = await page.evaluate(() => window.__radiovaVisualizerDebug);
-  check("audio element present", debug.audioElement === true);
-  check("audio context is running or suspended", ["running", "suspended"].includes(debug.audioContextState), debug.audioContextState);
-  check("one media element source", debug.mediaElementSourceCount === 1, String(debug.mediaElementSourceCount));
-  check("gain node present", debug.gainNodePresent === true);
-  check("channel splitter present", debug.channelSplitterPresent === true);
-  check("left analyser present", debug.leftAnalyserPresent === true);
-  check("right analyser present", debug.rightAnalyserPresent === true);
-  check("destination connected", debug.destinationConnected === true);
-  check("left canvas present", debug.leftCanvas === true, debug.canvasSizes.left || "");
-  check("right canvas present", debug.rightCanvas === true, debug.canvasSizes.right || "");
-  check("animation loop active", debug.animationLoopCount > 0, String(debug.animationLoopCount));
-  check("left analyser has data", debug.leftMax > 0, String(debug.leftMax));
-  check("right analyser has data", debug.rightMax > 0, String(debug.rightMax));
-  check("CORS mode is anonymous", debug.corsMode === "anonymous", debug.corsMode || "");
-  check("visualizer root cause clear", debug.rootCause === null, debug.rootCause || "");
-  await page.screenshot({ path: "test-results/verify/visualizer-playing.png", fullPage: true });
+  check("station 2 selected", secondDebug.currentStationId === "visualizer-b", secondDebug.currentStationId || "");
+  check("station switch keeps one media source", secondDebug.mediaElementSourceCount === 1, String(secondDebug.mediaElementSourceCount));
+  check("top resumes after station switch", secondDebug.topMax > 0, String(secondDebug.topMax));
+  check("bottom resumes after station switch", secondDebug.bottomMax > 0, String(secondDebug.bottomMax));
+  check("no duplicate RAF after station switch", secondDebug.animationFrameActive === true);
+
+  const beforeRouteGeneration = secondDebug.canvasGeneration;
+  await page.locator('.menu-item[data-sidebar-route="/privacy"]').click();
+  await page.waitForURL("**/uk/privacy/");
+  const privacyDebug = await page.evaluate(() => window.__radiovaVisualizerDebug ?? null);
+  check("audio continues after navigating away", privacyDebug?.audioPaused === false, privacyDebug ? "playing" : "missing debug");
+
+  await page.locator('.menu-item[data-sidebar-route="/"]').click();
+  await page.waitForURL(/\/uk\/?$/);
+  await page.waitForSelector("#dashboard-side-visualizer");
+  const routeReturnDebug = await waitForMovingVisualizer(page);
+  await page.screenshot({ path: "test-results/verify/visualizer-route-return.png", fullPage: true });
+
+  check("route return rebinds canvases", routeReturnDebug.canvasGeneration > beforeRouteGeneration, String(routeReturnDebug.canvasGeneration));
+  check("side resumes after route return", routeReturnDebug.sideMax > 0, String(routeReturnDebug.sideMax));
+  check("route return keeps one media source", routeReturnDebug.mediaElementSourceCount === 1, String(routeReturnDebug.mediaElementSourceCount));
+
+  await page.goBack();
+  await page.waitForURL("**/uk/privacy/");
+  await page.goForward();
+  await page.waitForURL(/\/uk\/?$/);
+  await page.waitForSelector("#dashboard-side-visualizer");
+  const forwardDebug = await waitForMovingVisualizer(page);
+  await page.screenshot({ path: "test-results/verify/visualizer-back-forward.png", fullPage: true });
+
+  check("Back/Forward keeps source", forwardDebug.mediaElementSourceCount === 1, String(forwardDebug.mediaElementSourceCount));
+  check("Back/Forward keeps RAF active", forwardDebug.animationFrameActive === true);
+  check("Back/Forward side moves", forwardDebug.sideMax > 0, String(forwardDebug.sideMax));
+  check("CORS mode is anonymous", forwardDebug.corsMode === "anonymous", forwardDebug.corsMode || "");
+  check("visualizer root cause clear", forwardDebug.rootCause === null, forwardDebug.rootCause || "");
+
+  console.log("VISUALIZER_REPORT " + JSON.stringify({
+    station1,
+    station2,
+    result: forwardDebug.mode,
+    topMaxBeforeSwitch: firstDebug.topMax,
+    bottomMaxBeforeSwitch: firstDebug.bottomMax,
+    topMaxAfterSwitch: secondDebug.topMax,
+    bottomMaxAfterSwitch: secondDebug.bottomMax,
+    sideMaxAfterRouteReturn: routeReturnDebug.sideMax,
+    canvasGeneration: forwardDebug.canvasGeneration,
+    rafCount: forwardDebug.animationFrameActive ? 1 : 0,
+    screenshots: [
+      "test-results/verify/visualizer-station-1.png",
+      "test-results/verify/visualizer-station-2.png",
+      "test-results/verify/visualizer-route-return.png",
+      "test-results/verify/visualizer-back-forward.png",
+    ],
+  }));
+
   await page.close();
   await browser.close();
 

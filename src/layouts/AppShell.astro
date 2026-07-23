@@ -23,15 +23,16 @@ const {
 };
 
 function localizeHref(href: string): string {
-  if (lang === "en") return href || "/";
+  const normalized = href === "/" || !href ? "/" : `${href}/`;
+  if (lang === "en") return normalized;
   const prefix = lang === "uk" ? "/uk" : "/de";
-  return href === "/" || !href ? prefix : prefix + href;
+  return normalized === "/" ? `${prefix}/` : prefix + normalized;
 }
 
 function isActive(href: string): boolean {
   const loc = localizeHref(href);
-  const norm = loc === "" ? "/" : loc;
-  return currentPath === norm;
+  const norm = loc === "" ? "/" : loc.replace(/\/$/, "");
+  return currentPath.replace(/\/$/, "") === norm;
 }
 
 function sidebarLabel(item: SidebarItem): string {
@@ -83,8 +84,8 @@ const sidebarItems: SidebarItem[] = [
 ];
 
 const enHref = currentPath.replace(/^\/?(uk|de)/, "") || "/";
-const ukHref = "/uk" + (enHref === "/" ? "" : enHref);
-const deHref = "/de" + (enHref === "/" ? "" : enHref);
+const ukHref = "/uk" + (enHref === "/" ? "/" : enHref);
+const deHref = "/de" + (enHref === "/" ? "/" : enHref);
 const normPath = enHref === "" ? "/" : enHref;
 const emptyStationTitle =
   lang === "uk" ? "Станцію не вибрано" : lang === "de" ? "Kein Sender ausgewählt" : "No station selected";

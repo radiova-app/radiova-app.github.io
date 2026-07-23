@@ -287,7 +287,8 @@ describe("equalizer lifecycle", () => {
   });
 
   it("prevents duplicate MediaElementSource", () => {
-    expect(equalizer).toContain("source.mediaElement === audioEl");
+    expect(equalizer).toContain("if (!graph.source) graph.source = ctx.createMediaElementSource(audioEl)");
+    expect(equalizer.match(/createMediaElementSource\(audioEl\)/g)?.length).toBe(1);
   });
 });
 
@@ -917,14 +918,20 @@ describe("stereo equalizer", () => {
   });
 
   it("connects splitter outputs to separate analysers", () => {
-    expect(eq).toContain("splitter.connect(analyserL, 0)");
-    expect(eq).toContain("splitter.connect(analyserR, 1)");
+    expect(eq).toContain("graph.splitter.connect(graph.analyserL, 0)");
+    expect(eq).toContain("graph.splitter.connect(graph.analyserR, 1)");
   });
 
   it("routes destination through gain node, not analysers", () => {
-    expect(eq).toContain("gainNode.connect(audioCtx.destination)");
+    expect(eq).toContain("graph.gainNode.connect(ctx.destination)");
     expect(eq).not.toContain("analyserL.connect(audioCtx.destination)");
     expect(eq).not.toContain("analyserR.connect(audioCtx.destination)");
+  });
+
+  it("draws top downward and bottom upward in code", () => {
+    expect(eq).toContain("drawBars(views.topCtx, topData, bufferLength, true)");
+    expect(eq).toContain("drawBars(views.bottomCtx, bottomData, bufferLength, false)");
+    expect(eq).toContain("const y = growFromTop ? 0 : h - barH");
   });
 
   it("has real-stereo mode", () => {
@@ -1202,36 +1209,44 @@ describe("sidebar rebinding lifecycle", () => {
 
 describe("persistent audio graph (equalizer refactor)", () => {
   const eq = readFile("src/scripts/equalizer.ts");
+  const app = readFile("src/scripts/app.ts");
+  const globalScss = readFile("src/styles/global.scss");
 
   it("has ensureGraph that checks already-connected", () => {
-    expect(eq).toContain("graphConnected && source && source.mediaElement === audioEl");
+    expect(eq).toContain("graph.connected && graph.source && graph.audioElement === audioEl");
   });
 
-  it("has graphConnected flag", () => {
-    expect(eq).toContain("graphConnected");
+  it("has persistent graph and replaceable views", () => {
+    expect(eq).toContain("interface PersistentVisualizerGraph");
+    expect(eq).toContain("interface VisualizerViews");
+    expect(eq).toContain("const graph: PersistentVisualizerGraph");
+    expect(eq).toContain("const views: VisualizerViews");
   });
 
-  it("has graphAudioElement reference", () => {
-    expect(eq).toContain("graphAudioElement");
+  it("creates one media element source only when missing", () => {
+    expect(eq).toContain("if (!graph.source) graph.source = ctx.createMediaElementSource(audioEl)");
+    expect(eq.match(/createMediaElementSource\(audioEl\)/g)?.length).toBe(1);
   });
 
   it("creates only one AudioContext", () => {
-    expect(eq).toContain("if (!audioCtx)");
-    expect(eq).toContain("audioCtx = new AudioContext()");
+    expect(eq).toContain("if (!graph.audioCtx)");
+    expect(eq).toContain("graph.audioCtx = new AudioContext()");
   });
 
   it("has rebindCanvases method", () => {
     expect(eq).toContain("rebindCanvases");
   });
 
-  it("does not close AudioContext during graph lifecycle", () => {
-    expect(eq).not.toContain("audioCtx.close()");
+  it("closes AudioContext only on final pagehide teardown", () => {
+    expect(eq).toContain("window.addEventListener('pagehide', disconnectGraph, { once: true })");
+    expect(eq).toContain("graph.audioCtx.close()");
+    expect(app).not.toContain("equalizer.destroy()");
   });
 
   it("routes audible output through a gain node instead of analysers", () => {
-    expect(eq).toContain("let gainNode: GainNode | null");
-    expect(eq).toContain("gainNode.connect(audioCtx.destination)");
-    expect(eq).toContain("gainNode.connect(splitter)");
+    expect(eq).toContain("gainNode: GainNode | null");
+    expect(eq).toContain("graph.gainNode.connect(ctx.destination)");
+    expect(eq).toContain("graph.gainNode.connect(graph.splitter)");
     expect(eq).not.toContain("analyserL.connect(audioCtx.destination)");
     expect(eq).not.toContain("analyserR.connect(audioCtx.destination)");
   });
@@ -1240,23 +1255,52 @@ describe("persistent audio graph (equalizer refactor)", () => {
     expect(eq).toContain("__radiovaVisualizerDebug");
     expect(eq).toContain("mediaElementSourceCount");
     expect(eq).toContain("destinationConnected");
-    expect(eq).toContain("leftMax");
-    expect(eq).toContain("rightMax");
+    expect(eq).toContain("topMax");
+    expect(eq).toContain("bottomMax");
+    expect(eq).toContain("sideMax");
+    expect(eq).toContain("canvasGeneration");
+    expect(eq).toContain("animationFrameActive");
   });
 
-  it("rebindCanvases implementation does not call clearGraph", () => {
-    const rbImpl = eq.match(/rebindCanvases\([^)]+\): void \{[\s\S]+?\},/);
-    expect(rbImpl).not.toBeNull();
-    if (rbImpl) {
-      expect(rbImpl[0]).not.toContain("clearGraph");
-      expect(rbImpl[0]).not.toContain("destroyGraph");
-      expect(rbImpl[0]).toContain("drawStatic()");
-    }
+  it("rebinds top, bottom, and side canvases without graph teardown", () => {
+    expect(eq).toContain("rebindCanvases(");
+    expect(eq).toContain("views.topCanvas = top");
+    expect(eq).toContain("views.bottomCanvas = bottom");
+    expect(eq).toContain("views.sideCanvas = side");
+    expect(eq).not.toContain("clearGraph");
   });
 
-  it("separates view lifecycle from graph lifecycle", () => {
-    expect(eq).toContain("// Persistent audio graph");
-    expect(eq).toContain("// View state (rebound per navigation)");
+  it("disconnects old ResizeObserver and attaches a new one on rebind", () => {
+    expect(eq).toContain("views.resizeObserver?.disconnect()");
+    expect(eq).toContain("new ResizeObserver");
+    expect(eq).toContain("views.resizeObserver.observe(canvas)");
+  });
+
+  it("has one RAF loop controlled by syncWithCurrentPlaybackState", () => {
+    expect(eq).toContain("syncWithCurrentPlaybackState");
+    expect(eq).toContain("if (isActive && views.rafId !== null) return");
+    expect(eq).toContain("views.rafId = requestAnimationFrame(tick)");
+    expect(eq).toContain("cancelAnimationFrame(views.rafId)");
+  });
+
+  it("rebinds side canvas on Astro page load through bindAll", () => {
+    expect(app).toContain('const sideVis = $("dashboard-side-visualizer")');
+    expect(app).toContain("equalizer.rebindCanvases(eqLeft, eqRight, sideVis)");
+    expect(app).toContain("equalizer.rebindSideCanvas(sideVis)");
+    expect(app).toContain("document.addEventListener(\"astro:page-load\", onPageNavigation)");
+  });
+
+  it("route return while playing resumes immediately", () => {
+    expect(app).toContain("equalizer.syncWithCurrentPlaybackState(state === \"playing\")");
+  });
+
+  it("station changes update debug station id and do not rebuild graph", () => {
+    expect(app).toContain("equalizer.setCurrentStationId(station.id)");
+    expect(eq).toContain("currentStationId = stationId");
+  });
+
+  it("does not mirror lower visualizer with CSS transform", () => {
+    expect(globalScss).not.toContain("#dashboard-equalizer-right {\n  transform: scaleY(-1)");
   });
 });
 
@@ -1288,7 +1332,7 @@ describe("onPageNavigation rebind", () => {
   });
 
   it("does not recreate equalizer on navigation when one exists", () => {
-    expect(app).toContain("equalizer.rebindCanvases(eqLeft, eqRight)");
+    expect(app).toContain("equalizer.rebindCanvases(eqLeft, eqRight, sideVis)");
   });
 
   it("routes to createEqualizer only if no existing equalizer", () => {

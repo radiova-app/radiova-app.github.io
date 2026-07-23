@@ -29,7 +29,7 @@ import {
   promptInstall,
   isStandalone,
 } from "../services/pwa";
-import { createEqualizer, createSideVisualizer, type EqualizerHandle } from "./equalizer";
+import { createEqualizer, type EqualizerHandle } from "./equalizer";
 import type { Station } from "../types/station";
 
 const PLAY_ICON = '<polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/>';
@@ -97,9 +97,6 @@ async function init(): Promise<void> {
   initPWA();
   setupPlayerListeners();
   bindAll();
-
-  const sideVis = $("dashboard-side-visualizer") as HTMLCanvasElement | null;
-  if (sideVis) createSideVisualizer(sideVis);
 
   setupResizeHandler();
 
@@ -371,19 +368,21 @@ function restorePlayerUI(): void {
 function rebindEqualizer(): void {
   const eqLeft = $("dashboard-equalizer-left") as HTMLCanvasElement | null;
   const eqRight = $("dashboard-equalizer-right") as HTMLCanvasElement | null;
+  const sideVis = $("dashboard-side-visualizer") as HTMLCanvasElement | null;
 
   if (equalizer) {
-    equalizer.rebindCanvases(eqLeft, eqRight);
+    equalizer.rebindCanvases(eqLeft, eqRight, sideVis);
     const audioEl = getAudioElement();
     if (audioEl) equalizer.setAudioElement(audioEl);
     const state = getState();
-    if (state === "playing") equalizer.start();
+    equalizer.syncWithCurrentPlaybackState(state === "playing");
   } else if (eqLeft && eqRight) {
     equalizer = createEqualizer(eqLeft, eqRight);
+    equalizer.rebindSideCanvas(sideVis);
     const audioEl = getAudioElement();
     if (audioEl) equalizer.setAudioElement(audioEl);
     const state = getState();
-    if (state === "playing") equalizer.start();
+    equalizer.syncWithCurrentPlaybackState(state === "playing");
   }
 }
 
@@ -575,11 +574,7 @@ function updateEqualizer(state: string): void {
     equalizer.setAudioElement(audioEl);
   }
   if (equalizer) {
-    if (state === "playing") {
-      equalizer.start();
-    } else {
-      equalizer.stop();
-    }
+    equalizer.syncWithCurrentPlaybackState(state === "playing");
   }
 }
 
@@ -645,6 +640,7 @@ function selectStation(station: Station, endpointIndex = 0): void {
   currentStation = station;
   currentPlayId = station.id;
   currentEndpointIndex = endpointIndex;
+  if (equalizer) equalizer.setCurrentStationId(station.id);
   setPlaybackStatus(endpointIndex > 0 ? "retrying" : "loading");
 
   const info: PlayerStationInfo = {
