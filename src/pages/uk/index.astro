@@ -46,11 +46,11 @@ const currentPath = Astro.url.pathname;
                   width="300"
                   height="44"
                   aria-label="Left audio visualizer"></canvas>
-                <div class="level-track">
-                  <div class="level-fill" id="dashboard-left-level-fill"></div>
+                <div class="level-track" aria-hidden="true">
+                  <div class="level-fill" id="dashboard-left-level-fill" data-meter-state="inactive"></div>
                 </div>
-                <div class="level-track">
-                  <div class="level-fill" id="dashboard-right-level-fill"></div>
+                <div class="level-track" aria-hidden="true">
+                  <div class="level-fill" id="dashboard-right-level-fill" data-meter-state="inactive"></div>
                 </div>
                 <canvas
                   id="dashboard-equalizer-right"

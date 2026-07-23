@@ -906,6 +906,9 @@ describe("View Transitions and persistent audio", () => {
 
 describe("stereo equalizer", () => {
   const eq = readFile("src/scripts/equalizer.ts");
+  const app = readFile("src/scripts/app.ts");
+  const index = readFile("src/pages/index.astro");
+  const globalScss = readFile("src/styles/global.scss");
 
   it("uses ChannelSplitterNode for stereo", () => {
     expect(eq).toContain("createChannelSplitter");
@@ -944,6 +947,55 @@ describe("stereo equalizer", () => {
 
   it("has paused mode", () => {
     expect(eq).toContain("paused");
+  });
+
+  it("binds display-only level meter elements", () => {
+    expect(index).toContain('id="dashboard-left-level-fill"');
+    expect(index).toContain('id="dashboard-right-level-fill"');
+    expect(index).toContain('aria-hidden="true"');
+    expect(globalScss).toContain("pointer-events: none");
+    expect(app).toContain('const leftMeter = $("dashboard-left-level-fill")');
+    expect(app).toContain('const rightMeter = $("dashboard-right-level-fill")');
+    expect(app).toContain("equalizer.rebindMeters(leftMeter, rightMeter)");
+  });
+
+  it("uses time-domain data for left and right meter levels", () => {
+    expect(eq).toContain("getByteTimeDomainData(data)");
+    expect(eq).toContain("const leftLevel = readAnalyserLevel(graph.analyserL)");
+    expect(eq).toContain("const rightLevel = readAnalyserLevel(graph.analyserR)");
+    expect(eq).toContain("leftMeterWidth = smoothLevel(leftMeterWidth, meterTarget(topLevel))");
+    expect(eq).toContain("rightMeterWidth = smoothLevel(rightMeterWidth, meterTarget(bottomLevel))");
+  });
+
+  it("keeps mono fallback real by sharing the available analyser", () => {
+    expect(eq).toContain("const topLevel = hasDataL || !hasDataR ? leftLevel : rightLevel");
+    expect(eq).toContain("const bottomLevel = hasDataR || !hasDataL ? rightLevel : leftLevel");
+  });
+
+  it("exposes live meter diagnostics", () => {
+    for (const field of [
+      "leftRms",
+      "rightRms",
+      "leftPeak",
+      "rightPeak",
+      "leftMeterWidth",
+      "rightMeterWidth",
+      "meterElementsBound",
+    ]) {
+      expect(eq).toContain(field);
+    }
+  });
+
+  it("decays meters on pause without a second RAF loop", () => {
+    expect(eq).toContain("let meterDecayPending = false");
+    expect(eq).toContain("meterDecayPending = metersNeedDecay()");
+    expect(eq.match(/requestAnimationFrame\(tick\)/g)?.length).toBeGreaterThan(0);
+    expect(eq).not.toContain("requestAnimationFrame(updateMeter");
+  });
+
+  it("keeps CORS-blocked and unavailable meters inactive", () => {
+    expect(eq).toContain("eqMode === 'cors-blocked'");
+    expect(eq).toContain("eqMode === 'paused' ? 'paused' : 'inactive'");
   });
 });
 

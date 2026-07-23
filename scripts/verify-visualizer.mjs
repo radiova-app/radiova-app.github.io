@@ -16,7 +16,7 @@ ${BASE_URL}/visualizer-tone-b.wav
 `;
 const sha256 = createHash("sha256").update(m3u).digest("hex");
 
-function wavTone(leftHz, rightHz, seconds = 8, sampleRate = 44100) {
+function wavTone(leftHz, rightHz, leftAmp = 0.37, rightAmp = 0.21, seconds = 8, sampleRate = 44100) {
   const samples = seconds * sampleRate;
   const dataSize = samples * 4;
   const buffer = Buffer.alloc(44 + dataSize);
@@ -34,8 +34,8 @@ function wavTone(leftHz, rightHz, seconds = 8, sampleRate = 44100) {
   buffer.write("data", 36);
   buffer.writeUInt32LE(dataSize, 40);
   for (let i = 0; i < samples; i += 1) {
-    const left = Math.round(Math.sin(2 * Math.PI * leftHz * (i / sampleRate)) * 0x2fff);
-    const right = Math.round(Math.sin(2 * Math.PI * rightHz * (i / sampleRate)) * 0x2fff);
+    const left = Math.round(Math.sin(2 * Math.PI * leftHz * (i / sampleRate)) * 0x7fff * leftAmp);
+    const right = Math.round(Math.sin(2 * Math.PI * rightHz * (i / sampleRate)) * 0x7fff * rightAmp);
     buffer.writeInt16LE(left, 44 + i * 4);
     buffer.writeInt16LE(right, 46 + i * 4);
   }
@@ -72,14 +72,14 @@ async function installRoutes(page) {
     await route.fulfill({
       headers: { "Access-Control-Allow-Origin": "*" },
       contentType: "audio/wav",
-      body: wavTone(440, 880),
+      body: wavTone(440, 880, 0.37, 0.19),
     });
   });
   await page.route(`${BASE_URL}/visualizer-tone-b.wav`, async (route) => {
     await route.fulfill({
       headers: { "Access-Control-Allow-Origin": "*" },
       contentType: "audio/wav",
-      body: wavTone(523, 1046),
+      body: wavTone(523, 1046, 0.2, 0.36),
     });
   });
 }
@@ -112,7 +112,23 @@ async function clearSite(context) {
 async function waitForMovingVisualizer(page) {
   await page.waitForFunction(() => {
     const debug = window.__radiovaVisualizerDebug;
-    return Boolean(debug && debug.animationFrameActive && debug.topMax > 0 && debug.bottomMax > 0 && debug.sideMax > 0);
+    return Boolean(
+      debug &&
+        debug.animationFrameActive &&
+        debug.topMax > 0 &&
+        debug.bottomMax > 0 &&
+        debug.sideMax > 0 &&
+        debug.leftMeterWidth > 0 &&
+        debug.rightMeterWidth > 0,
+    );
+  }, null, { timeout: 10000 });
+  return page.evaluate(() => window.__radiovaVisualizerDebug);
+}
+
+async function waitForPausedMeters(page) {
+  await page.waitForFunction(() => {
+    const debug = window.__radiovaVisualizerDebug;
+    return Boolean(debug && debug.leftMeterWidth < 0.05 && debug.rightMeterWidth < 0.05);
   }, null, { timeout: 10000 });
   return page.evaluate(() => window.__radiovaVisualizerDebug);
 }
@@ -146,7 +162,22 @@ async function main() {
   check("top visualizer moves", firstDebug.topMax > 0, String(firstDebug.topMax));
   check("bottom visualizer moves", firstDebug.bottomMax > 0, String(firstDebug.bottomMax));
   check("side visualizer moves", firstDebug.sideMax > 0, String(firstDebug.sideMax));
+  check("meter elements are bound", firstDebug.meterElementsBound === true);
+  check("top meter moves", firstDebug.leftMeterWidth > 0, String(firstDebug.leftMeterWidth));
+  check("bottom meter moves", firstDebug.rightMeterWidth > 0, String(firstDebug.rightMeterWidth));
+  check("stereo meter values differ", Math.abs(firstDebug.leftRms - firstDebug.rightRms) > 0.02, `${firstDebug.leftRms}/${firstDebug.rightRms}`);
   check("stereo source is classified", firstDebug.mode === "real-stereo", firstDebug.mode);
+
+  await page.locator("#dashboard-play-toggle").click();
+  const pausedDebug = await waitForPausedMeters(page);
+  await page.screenshot({ path: "test-results/verify/visualizer-paused-meters.png", fullPage: true });
+  check("pause decays top meter", pausedDebug.leftMeterWidth < 0.05, String(pausedDebug.leftMeterWidth));
+  check("pause decays bottom meter", pausedDebug.rightMeterWidth < 0.05, String(pausedDebug.rightMeterWidth));
+
+  await page.locator("#dashboard-play-toggle").click();
+  const resumedDebug = await waitForMovingVisualizer(page);
+  check("resume restores top meter", resumedDebug.leftMeterWidth > 0, String(resumedDebug.leftMeterWidth));
+  check("resume restores bottom meter", resumedDebug.rightMeterWidth > 0, String(resumedDebug.rightMeterWidth));
 
   await page.locator(".station-row__play").nth(1).click();
   await page.waitForFunction(() => window.__radiovaVisualizerDebug?.currentStationId === "visualizer-b", null, {
@@ -159,6 +190,8 @@ async function main() {
   check("station switch keeps one media source", secondDebug.mediaElementSourceCount === 1, String(secondDebug.mediaElementSourceCount));
   check("top resumes after station switch", secondDebug.topMax > 0, String(secondDebug.topMax));
   check("bottom resumes after station switch", secondDebug.bottomMax > 0, String(secondDebug.bottomMax));
+  check("top meter resumes after station switch", secondDebug.leftMeterWidth > 0, String(secondDebug.leftMeterWidth));
+  check("bottom meter resumes after station switch", secondDebug.rightMeterWidth > 0, String(secondDebug.rightMeterWidth));
   check("no duplicate RAF after station switch", secondDebug.animationFrameActive === true);
 
   const beforeRouteGeneration = secondDebug.canvasGeneration;
@@ -175,6 +208,9 @@ async function main() {
 
   check("route return rebinds canvases", routeReturnDebug.canvasGeneration > beforeRouteGeneration, String(routeReturnDebug.canvasGeneration));
   check("side resumes after route return", routeReturnDebug.sideMax > 0, String(routeReturnDebug.sideMax));
+  check("meters rebind after route return", routeReturnDebug.meterElementsBound === true);
+  check("top meter continues after route return", routeReturnDebug.leftMeterWidth > 0, String(routeReturnDebug.leftMeterWidth));
+  check("bottom meter continues after route return", routeReturnDebug.rightMeterWidth > 0, String(routeReturnDebug.rightMeterWidth));
   check("route return keeps one media source", routeReturnDebug.mediaElementSourceCount === 1, String(routeReturnDebug.mediaElementSourceCount));
 
   await page.goBack();
@@ -199,11 +235,20 @@ async function main() {
     bottomMaxBeforeSwitch: firstDebug.bottomMax,
     topMaxAfterSwitch: secondDebug.topMax,
     bottomMaxAfterSwitch: secondDebug.bottomMax,
+    leftRms: forwardDebug.leftRms,
+    rightRms: forwardDebug.rightRms,
+    leftPeak: forwardDebug.leftPeak,
+    rightPeak: forwardDebug.rightPeak,
+    leftMeterWidth: forwardDebug.leftMeterWidth,
+    rightMeterWidth: forwardDebug.rightMeterWidth,
+    pauseLeftMeterWidth: pausedDebug.leftMeterWidth,
+    pauseRightMeterWidth: pausedDebug.rightMeterWidth,
     sideMaxAfterRouteReturn: routeReturnDebug.sideMax,
     canvasGeneration: forwardDebug.canvasGeneration,
     rafCount: forwardDebug.animationFrameActive ? 1 : 0,
     screenshots: [
       "test-results/verify/visualizer-station-1.png",
+      "test-results/verify/visualizer-paused-meters.png",
       "test-results/verify/visualizer-station-2.png",
       "test-results/verify/visualizer-route-return.png",
       "test-results/verify/visualizer-back-forward.png",

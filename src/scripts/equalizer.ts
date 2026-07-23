@@ -11,6 +11,7 @@ export interface EqualizerHandle {
     side?: HTMLCanvasElement | null,
   ) => void;
   rebindSideCanvas: (side: HTMLCanvasElement | null) => void;
+  rebindMeters: (left: HTMLElement | null, right: HTMLElement | null) => void;
   syncWithCurrentPlaybackState: (isPlaying: boolean) => void;
   setCurrentStationId: (stationId: string | null) => void;
   destroy: () => void;
@@ -50,6 +51,13 @@ export interface VisualizerDebugState {
   topMax: number;
   bottomMax: number;
   sideMax: number;
+  leftRms: number;
+  rightRms: number;
+  leftPeak: number;
+  rightPeak: number;
+  leftMeterWidth: number;
+  rightMeterWidth: number;
+  meterElementsBound: boolean;
   currentStationId: string | null;
   audioPaused: boolean | null;
   canvasGeneration: number;
@@ -83,6 +91,8 @@ interface VisualizerViews {
   topCtx: CanvasRenderingContext2D | null;
   bottomCtx: CanvasRenderingContext2D | null;
   sideCtx: CanvasRenderingContext2D | null;
+  leftMeter: HTMLElement | null;
+  rightMeter: HTMLElement | null;
   resizeObserver: ResizeObserver | null;
   rafId: number | null;
   canvasGeneration: number;
@@ -108,12 +118,15 @@ const views: VisualizerViews = {
   topCtx: null,
   bottomCtx: null,
   sideCtx: null,
+  leftMeter: null,
+  rightMeter: null,
   resizeObserver: null,
   rafId: null,
   canvasGeneration: 0,
 };
 
 let isActive = false;
+let meterDecayPending = false;
 let reducedMotion = false;
 let eqMode: EqMode = 'unavailable';
 let modeLogged = false;
@@ -122,8 +135,19 @@ let zeroFrameCount = 0;
 let topMax = 0;
 let bottomMax = 0;
 let sideMax = 0;
+let leftRms = 0;
+let rightRms = 0;
+let leftPeak = 0;
+let rightPeak = 0;
+let leftMeterWidth = 0;
+let rightMeterWidth = 0;
 let currentStationId: string | null = null;
 let rootCause: string | null = null;
+
+export interface LevelSample {
+  rms: number;
+  peak: number;
+}
 
 function logMode(mode: EqMode): void {
   if (modeLogged) return;
@@ -138,6 +162,70 @@ function maxBin(dataArray: Uint8Array): number {
     if (value > max) max = value;
   }
   return max;
+}
+
+export function clampLevel(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(1, value));
+}
+
+export function calculateLevelFromTimeDomainData(dataArray: Uint8Array): LevelSample {
+  if (dataArray.length === 0) return { rms: 0, peak: 0 };
+  let sum = 0;
+  let peak = 0;
+  for (const value of dataArray) {
+    const normalized = (value - 128) / 128;
+    const abs = Math.abs(normalized);
+    sum += normalized * normalized;
+    if (abs > peak) peak = abs;
+  }
+  return {
+    rms: clampLevel(Math.sqrt(sum / dataArray.length)),
+    peak: clampLevel(peak),
+  };
+}
+
+export function smoothLevel(current: number, target: number): number {
+  const clampedCurrent = clampLevel(current);
+  const clampedTarget = clampLevel(target);
+  const factor = clampedTarget > clampedCurrent ? 0.55 : 0.12;
+  return clampLevel(clampedCurrent + (clampedTarget - clampedCurrent) * factor);
+}
+
+function meterTarget(sample: LevelSample): number {
+  return clampLevel(Math.max(sample.rms * 2.4, sample.peak * 0.72));
+}
+
+function resetMeters(state: 'inactive' | 'loading' | 'playing' | 'paused' | 'error' = 'paused'): void {
+  leftRms = 0;
+  rightRms = 0;
+  leftPeak = 0;
+  rightPeak = 0;
+  leftMeterWidth = smoothLevel(leftMeterWidth, 0);
+  rightMeterWidth = smoothLevel(rightMeterWidth, 0);
+  updateMeterElements(state);
+}
+
+function metersNeedDecay(): boolean {
+  return leftMeterWidth > 0.002 || rightMeterWidth > 0.002;
+}
+
+function updateMeterElements(state: 'inactive' | 'loading' | 'playing' | 'paused' | 'error'): void {
+  if (views.leftMeter) {
+    views.leftMeter.style.width = String(leftMeterWidth * 100) + '%';
+    views.leftMeter.dataset['meterState'] = state;
+  }
+  if (views.rightMeter) {
+    views.rightMeter.style.width = String(rightMeterWidth * 100) + '%';
+    views.rightMeter.dataset['meterState'] = state;
+  }
+}
+
+function readAnalyserLevel(analyser: AnalyserNode | null): LevelSample {
+  if (!analyser) return { rms: 0, peak: 0 };
+  const data = new Uint8Array(analyser.fftSize);
+  analyser.getByteTimeDomainData(data);
+  return calculateLevelFromTimeDomainData(data);
 }
 
 function updateDebug(): void {
@@ -170,6 +258,13 @@ function updateDebug(): void {
     topMax,
     bottomMax,
     sideMax,
+    leftRms,
+    rightRms,
+    leftPeak,
+    rightPeak,
+    leftMeterWidth,
+    rightMeterWidth,
+    meterElementsBound: Boolean(views.leftMeter && views.rightMeter),
     currentStationId,
     audioPaused: graph.audioElement ? graph.audioElement.paused : null,
     canvasGeneration: views.canvasGeneration,
@@ -333,12 +428,20 @@ function tick(): void {
   animationLoopCount += 1;
   if (!isActive) {
     drawStatic();
+    if (meterDecayPending) resetMeters();
     updateDebug();
+    if (meterDecayPending && metersNeedDecay()) {
+      views.rafId = requestAnimationFrame(tick);
+    } else {
+      meterDecayPending = false;
+      views.rafId = null;
+    }
     return;
   }
 
   if (eqMode === 'paused' || eqMode === 'cors-blocked' || eqMode === 'unavailable') {
     drawStatic();
+    resetMeters(eqMode === 'paused' ? 'paused' : 'inactive');
     updateDebug();
     views.rafId = requestAnimationFrame(tick);
     return;
@@ -347,6 +450,7 @@ function tick(): void {
   const bufferLength = (graph.analyserL?.frequencyBinCount ?? 0);
   if (!bufferLength) {
     drawStatic();
+    resetMeters();
     updateDebug();
     views.rafId = requestAnimationFrame(tick);
     return;
@@ -357,14 +461,26 @@ function tick(): void {
   if (graph.analyserL) graph.analyserL.getByteFrequencyData(dataL);
   if (graph.analyserR) graph.analyserR.getByteFrequencyData(dataR);
 
+  const leftLevel = readAnalyserLevel(graph.analyserL);
+  const rightLevel = readAnalyserLevel(graph.analyserR);
+
   const leftMax = maxBin(dataL);
   const rightMax = maxBin(dataR);
   const hasDataL = leftMax > 0;
   const hasDataR = rightMax > 0;
   const topData = hasDataL || !hasDataR ? dataL : dataR;
   const bottomData = hasDataR || !hasDataL ? dataR : dataL;
+  const topLevel = hasDataL || !hasDataR ? leftLevel : rightLevel;
+  const bottomLevel = hasDataR || !hasDataL ? rightLevel : leftLevel;
   topMax = maxBin(topData);
   bottomMax = maxBin(bottomData);
+  leftRms = topLevel.rms;
+  rightRms = bottomLevel.rms;
+  leftPeak = topLevel.peak;
+  rightPeak = bottomLevel.peak;
+  leftMeterWidth = smoothLevel(leftMeterWidth, meterTarget(topLevel));
+  rightMeterWidth = smoothLevel(rightMeterWidth, meterTarget(bottomLevel));
+  updateMeterElements('playing');
   const sideData = new Uint8Array(bufferLength);
   for (let i = 0; i < bufferLength; i += 1) {
     sideData[i] = Math.max(dataL[i] ?? 0, dataR[i] ?? 0);
@@ -377,6 +493,7 @@ function tick(): void {
     eqMode = hasDataL && hasDataR ? 'real-stereo' : 'mono-fallback';
   } else {
     zeroFrameCount += 1;
+    resetMeters();
   }
 
   if (views.topCtx && views.topCanvas) drawBars(views.topCtx, topData, bufferLength, true);
@@ -526,6 +643,7 @@ export function createEqualizer(left: HTMLCanvasElement, right: HTMLCanvasElemen
     start(): void {
       if (isActive && views.rafId !== null) return;
       isActive = true;
+      meterDecayPending = false;
       if (reducedMotion) return;
       if (graph.audioElement && !graph.connected) {
         ensureGraph(graph.audioElement);
@@ -545,8 +663,11 @@ export function createEqualizer(left: HTMLCanvasElement, right: HTMLCanvasElemen
       isActive = false;
       eqMode = 'paused';
       drawStatic();
+      resetMeters();
       updateDebug();
-      if (views.rafId !== null) { cancelAnimationFrame(views.rafId); views.rafId = null; }
+      meterDecayPending = metersNeedDecay();
+      if (views.rafId !== null) cancelAnimationFrame(views.rafId);
+      views.rafId = meterDecayPending ? requestAnimationFrame(tick) : null;
     },
 
     setAudioElement(el: HTMLAudioElement | null): void {
@@ -585,6 +706,13 @@ export function createEqualizer(left: HTMLCanvasElement, right: HTMLCanvasElemen
       updateDebug();
     },
 
+    rebindMeters(left: HTMLElement | null, right: HTMLElement | null): void {
+      views.leftMeter = left;
+      views.rightMeter = right;
+      updateMeterElements(eqMode === 'paused' ? 'paused' : graph.connected ? 'playing' : 'inactive');
+      updateDebug();
+    },
+
     syncWithCurrentPlaybackState(isPlaying: boolean): void {
       if (isPlaying) {
         handle.start();
@@ -610,6 +738,8 @@ export function createEqualizer(left: HTMLCanvasElement, right: HTMLCanvasElemen
       views.bottomCanvas = null;
       views.topCtx = null;
       views.bottomCtx = null;
+      views.leftMeter = null;
+      views.rightMeter = null;
     },
   };
 

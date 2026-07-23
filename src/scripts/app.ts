@@ -369,9 +369,12 @@ function rebindEqualizer(): void {
   const eqLeft = $("dashboard-equalizer-left") as HTMLCanvasElement | null;
   const eqRight = $("dashboard-equalizer-right") as HTMLCanvasElement | null;
   const sideVis = $("dashboard-side-visualizer") as HTMLCanvasElement | null;
+  const leftMeter = $("dashboard-left-level-fill");
+  const rightMeter = $("dashboard-right-level-fill");
 
   if (equalizer) {
     equalizer.rebindCanvases(eqLeft, eqRight, sideVis);
+    equalizer.rebindMeters(leftMeter, rightMeter);
     const audioEl = getAudioElement();
     if (audioEl) equalizer.setAudioElement(audioEl);
     const state = getState();
@@ -379,6 +382,7 @@ function rebindEqualizer(): void {
   } else if (eqLeft && eqRight) {
     equalizer = createEqualizer(eqLeft, eqRight);
     equalizer.rebindSideCanvas(sideVis);
+    equalizer.rebindMeters(leftMeter, rightMeter);
     const audioEl = getAudioElement();
     if (audioEl) equalizer.setAudioElement(audioEl);
     const state = getState();
@@ -533,6 +537,7 @@ function updateHeaderPlayer(state: SharedPlayerState): void {
 function updateDashboardPlayer(state: SharedPlayerState): void {
   const dp = $("dashboard-player");
   if (!dp) return;
+  dp.dataset["playerState"] = state.status;
 
   const playIconEl = $("dashboard-play-icon");
   if (playIconEl) {
