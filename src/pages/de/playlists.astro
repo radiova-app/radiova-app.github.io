@@ -22,7 +22,7 @@ const locales = ["uk", "en", "de", "global", "all"] as const;
               <span data-i18n="playlists.neverUpdated">Noch nicht geladen</span>
             </p>
             <div class="playlist-card__actions">
-              <a href={"/" + (lang === "en" ? "" : lang + "/")} class="card__action" data-i18n="playlists.open">Öffnen</a>
+              <a href="/de/" class="card__action" data-i18n="playlists.open">Öffnen</a>
               <a href={baseUrl + "/playlists/" + locale + ".m3u"} class="card__action" download data-i18n="playlists.download">M3U herunterladen</a>
               <button class="card__action copy-url-btn" data-url={baseUrl + "/playlists/" + locale + ".m3u"} type="button" data-i18n="playlists.copyUrl">URL kopieren</button>
             </div>

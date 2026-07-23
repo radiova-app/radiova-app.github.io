@@ -1,4 +1,5 @@
-export type PlayerState = 'idle' | 'playing' | 'paused' | 'error' | 'loading';
+export type PlayerState =
+  "idle" | "loading" | "waiting" | "retrying" | "playing" | "paused" | "error";
 
 export interface PlayerStationInfo {
   stationId: string | null;
@@ -15,22 +16,24 @@ export interface SharedPlayerState {
   isMuted: boolean;
   volume: number;
   status: PlayerState;
+  statusLabel: string;
   errorMessage: string | null;
   updatedAt: number;
 }
 
-const STORAGE_KEY_VOLUME = 'radiova-vol';
-const STORAGE_KEY_MUTED = 'radiova-muted';
+const STORAGE_KEY_VOLUME = "radiova-vol";
+const STORAGE_KEY_MUTED = "radiova-muted";
 
 let audio: HTMLAudioElement | null = null;
-let currentState: PlayerState = 'idle';
+let currentState: PlayerState = "idle";
 let stateListeners: Array<(state: PlayerState) => void> = [];
 let errorListeners: Array<(msg: string) => void> = [];
 let changeListeners: Array<(state: SharedPlayerState) => void> = [];
-let currentUrl: string = '';
+let currentUrl: string = "";
+let currentErrorMessage: string | null = null;
 let currentStationInfo: PlayerStationInfo = {
   stationId: null,
-  stationName: 'No station selected',
+  stationName: "No station selected",
   artworkUrl: null,
   endpointId: null,
   endpointUrl: null,
@@ -39,47 +42,68 @@ let currentStationInfo: PlayerStationInfo = {
 
 function getAudio(): HTMLAudioElement {
   if (!audio) {
-    audio = document.getElementById('persistent-audio') as HTMLAudioElement | null;
+    audio = document.getElementById("persistent-audio") as HTMLAudioElement | null;
     if (!audio) {
       audio = new Audio();
     }
-    audio.preload = 'none';
-    audio.crossOrigin = 'anonymous';
+    audio.preload = "none";
+    audio.crossOrigin = "anonymous";
 
-    audio.onplay = () => {
-      currentState = 'playing';
-      notifyState();
-      notifyChange();
-    };
-    audio.onpause = () => {
-      currentState = 'paused';
-      notifyState();
-      notifyChange();
-    };
-    audio.onwaiting = () => {
-      currentState = 'loading';
-      notifyState();
-      notifyChange();
-    };
-    audio.onerror = () => {
-      currentState = 'error';
-      notifyState();
-      notifyChange();
-      const errCode = audio?.error?.code ?? 0;
-      const errMsg = audio?.error?.message || 'Unable to play this stream';
-      for (const fn of errorListeners) fn(errMsg + ' (code=' + String(errCode) + ')');
-    };
-    audio.onended = () => {
-      currentState = 'idle';
-      notifyState();
-      notifyChange();
-    };
+    bindMediaEvents(audio);
 
     const vol = loadVolume();
     audio.volume = vol;
     audio.muted = loadMuted();
   }
   return audio;
+}
+
+function bindMediaEvents(el: HTMLAudioElement): void {
+  el.addEventListener("loadstart", () => {
+    if (currentState === "error") return;
+    setState("loading");
+  });
+  el.addEventListener("waiting", () => {
+    if (currentState === "error") return;
+    setState("waiting");
+  });
+  el.addEventListener("stalled", () => {
+    if (currentState === "error") return;
+    setState("waiting");
+  });
+  el.addEventListener("canplay", () => {
+    /* canplay is not playback. */
+  });
+  el.addEventListener("playing", () => {
+    setState("playing");
+  });
+  el.addEventListener("pause", () => {
+    if (currentState === "error") return;
+    setState("paused");
+  });
+  el.addEventListener("ended", () => {
+    if (currentState === "error") return;
+    setState("paused");
+  });
+  el.addEventListener("abort", () => {
+    /* Abort can be emitted while switching fallback streams; it is not a pause signal. */
+  });
+  el.addEventListener("emptied", () => {
+    if (!currentUrl) setState("idle");
+  });
+  el.addEventListener("error", () => {
+    const errCode = audio?.error?.code ?? 0;
+    const errMsg = audio?.error?.message || "Unable to play this stream";
+    for (const fn of errorListeners) fn(errMsg + " (code=" + String(errCode) + ")");
+  });
+}
+
+function setState(nextState: PlayerState, errorMessage: string | null = null): void {
+  if (currentState === nextState && currentErrorMessage === errorMessage) return;
+  currentState = nextState;
+  currentErrorMessage = errorMessage;
+  notifyState();
+  notifyChange();
 }
 
 function notifyState(): void {
@@ -89,11 +113,12 @@ function notifyState(): void {
 function notifyChange(): void {
   const state: SharedPlayerState = {
     station: { ...currentStationInfo },
-    isPlaying: currentState === 'playing',
+    isPlaying: currentState === "playing",
     isMuted: audio ? audio.muted : loadMuted(),
     volume: audio ? audio.volume : loadVolume(),
     status: currentState,
-    errorMessage: null,
+    statusLabel: getPlaybackStatusLabel(currentState),
+    errorMessage: currentErrorMessage,
     updatedAt: Date.now(),
   };
   for (const fn of changeListeners) fn(state);
@@ -122,7 +147,7 @@ function saveVolume(v: number): void {
 
 function loadMuted(): boolean {
   try {
-    return localStorage.getItem(STORAGE_KEY_MUTED) === 'true';
+    return localStorage.getItem(STORAGE_KEY_MUTED) === "true";
   } catch {
     return false;
   }
@@ -142,6 +167,19 @@ export function getState(): PlayerState {
 
 export function getCurrentUrl(): string {
   return currentUrl;
+}
+
+export function getSharedPlayerState(): SharedPlayerState {
+  return {
+    station: { ...currentStationInfo },
+    isPlaying: currentState === "playing",
+    isMuted: audio ? audio.muted : loadMuted(),
+    volume: audio ? audio.volume : loadVolume(),
+    status: currentState,
+    statusLabel: getPlaybackStatusLabel(currentState),
+    errorMessage: currentErrorMessage,
+    updatedAt: Date.now(),
+  };
 }
 
 export function onStateChange(fn: (state: PlayerState) => void): () => void {
@@ -172,34 +210,48 @@ export function getAudioElement(): HTMLAudioElement | null {
 export function play(url: string): void {
   const el = getAudio();
 
-  const isSecure = typeof window !== 'undefined' && window.location.protocol === 'https:';
-  if (isSecure && url.startsWith('http://')) {
-    const upgraded = 'https://' + url.slice(7);
+  const isSecure = typeof window !== "undefined" && window.location.protocol === "https:";
+  if (isSecure && url.startsWith("http://")) {
+    const upgraded = "https://" + url.slice(7);
     url = upgraded;
   }
 
-  if (currentUrl !== url) {
+  const requestedUrl = url;
+
+  if (currentUrl !== requestedUrl) {
     el.src = url;
-    currentUrl = url;
+    currentUrl = requestedUrl;
   }
-  currentState = 'loading';
-  notifyState();
-  notifyChange();
-  el.play().then(() => {
-    // playback started successfully
-  }).catch((err: unknown) => {
-    const message = err instanceof Error ? err.message : String(err);
-    if (message.includes('user gesture') || message.includes('not allowed') || message.includes('autoplay')) {
-      currentState = 'paused';
-      notifyState();
-      notifyChange();
-    } else {
-      currentState = 'error';
-      notifyState();
-      notifyChange();
-      for (const fn of errorListeners) fn(message);
-    }
-  });
+  setState("loading");
+  el.play()
+    .then(() => {
+      // The playing event is the only source of the public playing state.
+    })
+    .catch((err: unknown) => {
+      const message = err instanceof Error ? err.message : String(err);
+      const name =
+        typeof DOMException !== "undefined" && err instanceof DOMException ? err.name : "";
+      if (name === "AbortError" || message.includes("interrupted") || message.includes("aborted")) {
+        if (currentUrl !== requestedUrl) return;
+        setState("paused");
+      } else if (
+        message.includes("user gesture") ||
+        message.includes("not allowed") ||
+        message.includes("autoplay")
+      ) {
+        setState("paused");
+      } else {
+        for (const fn of errorListeners) fn(message);
+      }
+    });
+}
+
+export function togglePlayback(): void {
+  if (currentState === "playing" || currentState === "loading") {
+    pause();
+  } else if (currentUrl) {
+    play(currentUrl);
+  }
 }
 
 export function pause(): void {
@@ -211,12 +263,10 @@ export function pause(): void {
 export function stop(): void {
   if (audio) {
     audio.pause();
-    audio.src = '';
-    currentUrl = '';
+    audio.src = "";
+    currentUrl = "";
   }
-  currentState = 'idle';
-  notifyState();
-  notifyChange();
+  setState("idle");
 }
 
 export function getVolume(): number {
@@ -230,7 +280,7 @@ export function setVolume(v: number): void {
   el.volume = clamped;
   saveVolume(clamped);
   notifyChange();
-  document.dispatchEvent(new CustomEvent('radiova:volume-changed', { detail: clamped }));
+  document.dispatchEvent(new CustomEvent("radiova:volume-changed", { detail: clamped }));
 }
 
 export function isMuted(): boolean {
@@ -243,7 +293,7 @@ export function setMuted(m: boolean): void {
   el.muted = m;
   saveMuted(m);
   notifyChange();
-  document.dispatchEvent(new CustomEvent('radiova:mute-changed', { detail: m }));
+  document.dispatchEvent(new CustomEvent("radiova:mute-changed", { detail: m }));
 }
 
 export function toggleMute(): void {
@@ -257,4 +307,43 @@ export function getStationInfo(): PlayerStationInfo {
 export function setStationInfo(info: PlayerStationInfo): void {
   currentStationInfo = { ...info };
   notifyChange();
+}
+
+export function setPlaybackStatus(status: PlayerState, errorMessage: string | null = null): void {
+  setState(status, errorMessage);
+}
+
+export function getPlaybackStatusLabel(status: PlayerState): string {
+  const docLang = typeof document === "undefined" ? "en" : document.documentElement.lang;
+  const lang = docLang === "uk" || docLang === "de" ? docLang : "en";
+  const labels: Record<"en" | "uk" | "de", Record<PlayerState, string>> = {
+    en: {
+      idle: "No station selected",
+      loading: "Loading...",
+      playing: "Playing",
+      paused: "Paused",
+      waiting: "Waiting for stream...",
+      retrying: "Trying another stream...",
+      error: "Stream error",
+    },
+    uk: {
+      idle: "Не вибрано станцію",
+      loading: "Завантаження...",
+      playing: "Грає",
+      paused: "Призупинено",
+      waiting: "Очікування потоку...",
+      retrying: "Спроба іншого потоку...",
+      error: "Помилка потоку",
+    },
+    de: {
+      idle: "Kein Sender ausgewählt",
+      loading: "Wird geladen...",
+      playing: "Wiedergabe",
+      paused: "Pausiert",
+      waiting: "Stream wird erwartet...",
+      retrying: "Anderer Stream wird versucht...",
+      error: "Streamfehler",
+    },
+  };
+  return labels[lang][status];
 }

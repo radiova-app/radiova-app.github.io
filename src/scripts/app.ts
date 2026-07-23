@@ -1,15 +1,49 @@
-import { loadLocale, applyI18n } from '../services/i18n';
-import { getAudioElement, getCurrentUrl, getState, getVolume, onError, onStateChange, onChange, pause, play, setVolume, setMuted, toggleMute, isMuted, setStationInfo, type SharedPlayerState, type PlayerStationInfo } from '../services/player';
-import { addRecent, getSettings, saveSettings } from '../services/db';
-import { initPWA, getPWAState, onPWAStateChange, promptInstall, isStandalone } from '../services/pwa';
-import { createEqualizer, createSideVisualizer, type EqualizerHandle } from './equalizer';
-import type { Station } from '../types/station';
+import { loadLocale, applyI18n } from "../services/i18n";
+import {
+  getAudioElement,
+  getCurrentUrl,
+  getState,
+  getVolume,
+  getSharedPlayerState,
+  onError,
+  onChange,
+  play,
+  togglePlayback,
+  setVolume,
+  setMuted,
+  toggleMute,
+  isMuted,
+  setStationInfo,
+  setPlaybackStatus,
+  type SharedPlayerState,
+  type PlayerStationInfo,
+  type PlayerState,
+} from "../services/player";
+import { addRecent, getSettings, saveSettings } from "../services/db";
+import { queueStreamReport } from "../services/reporter";
+import {
+  initPWA,
+  getPWAState,
+  onPWAStateChange,
+  promptInstall,
+  isStandalone,
+} from "../services/pwa";
+import { createEqualizer, createSideVisualizer, type EqualizerHandle } from "./equalizer";
+import type { Station } from "../types/station";
 
 const PLAY_ICON = '<polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/>';
-const PAUSE_ICON = '<rect x="6" y="4" width="4" height="16" fill="currentColor"/><rect x="14" y="4" width="4" height="16" fill="currentColor"/>';
+const PAUSE_ICON =
+  '<rect x="6" y="4" width="4" height="16" fill="currentColor"/><rect x="14" y="4" width="4" height="16" fill="currentColor"/>';
+const SPINNER_ICON =
+  '<circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2" opacity="0.25"/><path d="M20 12a8 8 0 00-8-8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
+const WARNING_ICON =
+  '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v6M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
 
 const PLAY_ICON_FULL = `<svg viewBox="0 0 24 24" class="menu-icon" aria-hidden="true">${PLAY_ICON}</svg>`;
 const PAUSE_ICON_FULL = `<svg viewBox="0 0 24 24" class="menu-icon" aria-hidden="true">${PAUSE_ICON}</svg>`;
+const SPINNER_ICON_FULL = `<svg viewBox="0 0 24 24" class="menu-icon loading-spinner" aria-hidden="true">${SPINNER_ICON}</svg>`;
+const WARNING_ICON_FULL = `<svg viewBox="0 0 24 24" class="menu-icon warning-icon" aria-hidden="true">${WARNING_ICON}</svg>`;
+const STREAM_TIMEOUT_MS = 12000;
 
 let currentPlayId: string | null = null;
 let currentStation: Station | null = null;
@@ -19,20 +53,28 @@ let settings: Awaited<ReturnType<typeof getSettings>>;
 let equalizer: EqualizerHandle | null = null;
 let sidebarAbortController: AbortController | null = null;
 let restoredOnce = false;
-const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+let streamTimeoutId: number | null = null;
+const isDev = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
 
-const diagnostics: { logs: string[]; add: (msg: string) => void; clear: () => void; render: () => void } = {
+const diagnostics: {
+  logs: string[];
+  add: (msg: string) => void;
+  clear: () => void;
+  render: () => void;
+} = {
   logs: [],
   add(msg: string): void {
     this.logs.push(`[${new Date().toISOString().slice(11, 19)}] ${msg}`);
     if (this.logs.length > 200) this.logs.shift();
-    if (isDev && this.logs.length <= 50) console.log('radiova:', msg);
+    if (isDev && this.logs.length <= 50) console.log("radiova:", msg);
   },
-  clear(): void { this.logs = []; },
+  clear(): void {
+    this.logs = [];
+  },
   render(): void {
-    const el = $('dev-diagnostics');
+    const el = $("dev-diagnostics");
     if (!el) return;
-    el.innerHTML = this.logs.slice(-30).join('\n');
+    el.innerHTML = this.logs.slice(-30).join("\n");
   },
 };
 
@@ -41,8 +83,8 @@ function $(id: string): HTMLElement | null {
 }
 
 function isHomePage(): boolean {
-  const path = window.location.pathname.replace(/\/$/, '');
-  return path === '' || path === '/' || path === '/uk' || path === '/de';
+  const path = window.location.pathname.replace(/\/$/, "");
+  return path === "" || path === "/" || path === "/uk" || path === "/de";
 }
 
 async function init(): Promise<void> {
@@ -53,46 +95,35 @@ async function init(): Promise<void> {
 
   initPWA();
   setupPlayerListeners();
-  setupHeaderControls();
-  setupDashboardControls();
-  bindSidebar();
+  bindAll();
 
-  applyPlayerVisibility();
-
-  const eqLeft = $('dashboard-equalizer-left') as HTMLCanvasElement | null;
-  const eqRight = $('dashboard-equalizer-right') as HTMLCanvasElement | null;
-  if (eqLeft && eqRight) {
-    equalizer = createEqualizer(eqLeft, eqRight);
-    const audioEl = getAudioElement();
-    if (audioEl) equalizer.setAudioElement(audioEl);
-  }
-
-  const sideVis = $('dashboard-side-visualizer') as HTMLCanvasElement | null;
+  const sideVis = $("dashboard-side-visualizer") as HTMLCanvasElement | null;
   if (sideVis) createSideVisualizer(sideVis);
 
-  syncAllVolumeSliders();
-  syncAllMuteButtons();
-
-  applyDesktopCollapse();
   setupResizeHandler();
-  updatePWAButton();
 
   await restorePlayerState();
 
-  window.addEventListener('beforeunload', persistPlayerState);
-  document.addEventListener('radiova:volume-changed', () => { syncAllVolumeSliders(); });
-  document.addEventListener('radiova:mute-changed', () => { syncAllMuteButtons(); });
+  window.addEventListener("beforeunload", persistPlayerState);
+  document.addEventListener("radiova:volume-changed", () => {
+    syncAllVolumeSliders();
+  });
+  document.addEventListener("radiova:mute-changed", () => {
+    syncAllMuteButtons();
+  });
 
   onChange(handlePlayerChange);
+
+  handlePlayerChange(getSharedPlayerState());
 }
 
 function applyPlayerVisibility(): void {
   const home = isHomePage();
-  const dp = $('dashboard-player');
-  const hp = $('header-player');
+  const dp = $("dashboard-player");
+  const hp = $("header-player");
 
-  if (dp) dp.classList.toggle('is-route-hidden', !home);
-  if (hp) hp.classList.toggle('is-route-hidden', home);
+  if (dp) dp.classList.toggle("is-route-hidden", !home);
+  if (hp) hp.classList.toggle("is-route-hidden", home);
 }
 
 async function restorePlayerState(): Promise<void> {
@@ -103,11 +134,16 @@ async function restorePlayerState(): Promise<void> {
   const stationId = settings.lastStationId;
   const endpointId = settings.lastEndpointId;
 
-  diagnostics.add('restorePlayerState: attempting restore of stationId=' + stationId + ' endpointId=' + (endpointId || '?'));
+  diagnostics.add(
+    "restorePlayerState: attempting restore of stationId=" +
+      stationId +
+      " endpointId=" +
+      (endpointId || "?"),
+  );
 
-  const locale = settings.lastPlaylist || 'all';
+  const locale = settings.lastPlaylist || "all";
   try {
-    const { loadPlaylist } = await import('../services/playlist');
+    const { loadPlaylist } = await import("../services/playlist");
     const { stations } = await loadPlaylist(locale);
     if (stations.length === 0) return;
 
@@ -136,7 +172,15 @@ async function restorePlayerState(): Promise<void> {
       artworkUrl: station.logo || null,
       endpointId: station.endpoints[epIndex]?.id || null,
       endpointUrl: station.endpoints[epIndex]?.url || null,
-      endpointLabel: [station.endpoints[epIndex]?.codec, station.endpoints[epIndex]?.bitrate ? String(station.endpoints[epIndex]?.bitrate) + 'k' : ''].filter(Boolean).join(' ') || null,
+      endpointLabel:
+        [
+          station.endpoints[epIndex]?.codec,
+          station.endpoints[epIndex]?.bitrate
+            ? String(station.endpoints[epIndex]?.bitrate) + "k"
+            : "",
+        ]
+          .filter(Boolean)
+          .join(" ") || null,
     };
     setStationInfo(info);
 
@@ -150,9 +194,14 @@ async function restorePlayerState(): Promise<void> {
     syncAllVolumeSliders();
     syncAllMuteButtons();
 
-    diagnostics.add('restorePlayerState: restored station="' + station.name + '" endpoint=' + (info.endpointUrl?.slice(0, 50) || '?'));
+    diagnostics.add(
+      'restorePlayerState: restored station="' +
+        station.name +
+        '" endpoint=' +
+        (info.endpointUrl?.slice(0, 50) || "?"),
+    );
   } catch (err) {
-    diagnostics.add('restorePlayerState error: ' + String(err));
+    diagnostics.add("restorePlayerState error: " + String(err));
   }
 }
 
@@ -165,33 +214,196 @@ function persistPlayerState(): void {
 }
 
 function handlePlayerChange(state: SharedPlayerState): void {
-  updateHeaderPlayer(state.status);
-  updateDashboardPlayer(state.status);
+  updateHeaderPlayer(state);
+  updateDashboardPlayer(state);
   updateEqualizer(state.status);
+  updateStreamTimeout(state.status);
 
   const info = state.station;
   if (info.stationId && info.stationId !== currentStation?.id) {
-    diagnostics.add('playerChange: station=' + info.stationName + ' state=' + state.status);
+    diagnostics.add("playerChange: station=" + info.stationName + " state=" + state.status);
   }
 }
 
 function applyDesktopCollapse(): void {
-  const shell = $('shell');
+  const shell = $("shell");
   if (!shell) return;
+  if (typeof settings === "undefined") return;
   if (window.innerWidth < 640) {
-    shell.classList.remove('shell-collapsed');
+    shell.classList.remove("shell-collapsed");
   } else if (settings.sidebarCollapsed) {
-    shell.classList.add('shell-collapsed');
+    shell.classList.add("shell-collapsed");
   } else {
-    shell.classList.remove('shell-collapsed');
+    shell.classList.remove("shell-collapsed");
+  }
+}
+
+let domAbortController: AbortController | null = null;
+
+function bindHeaderPlayer(signal: AbortSignal): void {
+  const headerLogo = $("header-station-logo");
+  if (headerLogo) {
+    headerLogo.addEventListener("click", togglePlayback, { signal });
+  }
+
+  const headerVol = $("header-volume") as HTMLInputElement | null;
+  if (headerVol) {
+    headerVol.addEventListener(
+      "input",
+      () => {
+        setVolume(parseFloat(headerVol.value));
+      },
+      { signal },
+    );
+  }
+
+  const headerMute = $("header-mute-btn");
+  if (headerMute) headerMute.addEventListener("click", toggleMute, { signal });
+}
+
+function bindDashboardPlayer(signal: AbortSignal): void {
+  const toggleBtn = $("dashboard-station-square");
+  if (toggleBtn) {
+    toggleBtn.addEventListener("click", togglePlayback, { signal });
+  }
+
+  const prevBtn = $("dashboard-prev");
+  if (prevBtn)
+    prevBtn.addEventListener(
+      "click",
+      () => {
+        navigateStation(-1);
+      },
+      { signal },
+    );
+
+  const nextBtn = $("dashboard-next");
+  if (nextBtn)
+    nextBtn.addEventListener(
+      "click",
+      () => {
+        navigateStation(1);
+      },
+      { signal },
+    );
+
+  const playToggle = $("dashboard-play-toggle");
+  if (playToggle) {
+    playToggle.addEventListener("click", togglePlayback, { signal });
+  }
+
+  const dbVol = $("dashboard-volume") as HTMLInputElement | null;
+  if (dbVol) {
+    dbVol.addEventListener(
+      "input",
+      () => {
+        setVolume(parseFloat(dbVol.value));
+      },
+      { signal },
+    );
+  }
+
+  const dbMute = $("dashboard-mute-btn");
+  if (dbMute) dbMute.addEventListener("click", toggleMute, { signal });
+
+  const refreshBtn = $("refresh-playlists");
+  if (refreshBtn) {
+    refreshBtn.addEventListener(
+      "click",
+      () => {
+        const statusEl = $("update-status");
+        if (statusEl) statusEl.textContent = "Updating...";
+        document.dispatchEvent(new CustomEvent("radiova:refresh"));
+      },
+      { signal },
+    );
+  }
+
+  const pwaBtn = $("pwa-install-btn");
+  if (pwaBtn) {
+    pwaBtn.addEventListener(
+      "click",
+      () => {
+        void promptInstall();
+      },
+      { signal },
+    );
+  }
+
+  document.addEventListener(
+    "click",
+    (e) => {
+      const target = e.target as HTMLElement;
+      if (target.classList.contains("stream-btn") && currentStation) {
+        const stationId = target.dataset["stationId"];
+        const endpointUrl = target.dataset["url"];
+        if (stationId === currentStation.id && endpointUrl) {
+          const endpointIndex = currentStation.endpoints.findIndex((ep) => ep.url === endpointUrl);
+          if (endpointIndex >= 0) selectStation(currentStation, endpointIndex);
+        }
+      }
+    },
+    { signal },
+  );
+}
+
+function restorePlayerUI(): void {
+  if (!currentStation) return;
+  const state = getSharedPlayerState();
+  setStationImages(currentStation);
+  updateStationInfo(currentStation);
+  updateStreamSelector(currentStation);
+  updateHeaderPlayer(state);
+  updateDashboardPlayer(state);
+}
+
+function rebindEqualizer(): void {
+  const eqLeft = $("dashboard-equalizer-left") as HTMLCanvasElement | null;
+  const eqRight = $("dashboard-equalizer-right") as HTMLCanvasElement | null;
+
+  if (equalizer) {
+    equalizer.rebindCanvases(eqLeft, eqRight);
+    const audioEl = getAudioElement();
+    if (audioEl) equalizer.setAudioElement(audioEl);
+    const state = getState();
+    if (state === "playing") equalizer.start();
+  } else if (eqLeft && eqRight) {
+    equalizer = createEqualizer(eqLeft, eqRight);
+    const audioEl = getAudioElement();
+    if (audioEl) equalizer.setAudioElement(audioEl);
+    const state = getState();
+    if (state === "playing") equalizer.start();
+  }
+}
+
+function bindAll(): void {
+  domAbortController?.abort();
+  domAbortController = new AbortController();
+  const signal = domAbortController.signal;
+
+  bindHeaderPlayer(signal);
+  bindDashboardPlayer(signal);
+  bindSidebar();
+  applyPlayerVisibility();
+  applyDesktopCollapse();
+  syncAllVolumeSliders();
+  syncAllMuteButtons();
+  restorePlayerUI();
+  rebindEqualizer();
+  updatePWAButton();
+
+  if (currentStation) {
+    document.dispatchEvent(
+      new CustomEvent("radiova:player-station-changed", { detail: currentStation.id }),
+    );
   }
 }
 
 function setupResizeHandler(): void {
   let prevWidth = window.innerWidth;
-  window.addEventListener('resize', () => {
+  window.addEventListener("resize", () => {
     const w = window.innerWidth;
-    if ((prevWidth < 640) !== (w < 640)) {
+    if (prevWidth < 640 !== w < 640) {
       applyDesktopCollapse();
     }
     prevWidth = w;
@@ -203,191 +415,121 @@ function bindSidebar(): void {
   sidebarAbortController = new AbortController();
   const signal = sidebarAbortController.signal;
 
-  const shell = $('shell');
-  const sidebar = $('sidebar');
-  const toggleBtn = $('sidebar-toggle');
+  const shell = $("shell");
+  const sidebar = $("sidebar");
+  const toggleBtn = $("sidebar-toggle");
   if (!shell || !sidebar || !toggleBtn) return;
 
   function isMobile(): boolean {
     return window.innerWidth < 640;
   }
 
-  toggleBtn.addEventListener('click', () => {
-    if (isMobile()) {
-      sidebar.classList.toggle('is-open-mobile');
-    } else {
-      shell.classList.toggle('shell-collapsed');
-      settings.sidebarCollapsed = shell.classList.contains('shell-collapsed');
-      void saveSettings(settings);
-    }
-  }, { signal });
+  toggleBtn.addEventListener(
+    "click",
+    () => {
+      if (isMobile()) {
+        sidebar.classList.toggle("is-open-mobile");
+      } else {
+        shell.classList.toggle("shell-collapsed");
+        settings.sidebarCollapsed = shell.classList.contains("shell-collapsed");
+        void saveSettings(settings);
+      }
+    },
+    { signal },
+  );
 
-  document.querySelectorAll('[data-sidebar-route]').forEach((link) => {
-    link.addEventListener('click', () => {
-      if (isMobile()) sidebar.classList.remove('is-open-mobile');
-    }, { signal });
+  document.querySelectorAll("[data-sidebar-route]").forEach((link) => {
+    link.addEventListener(
+      "click",
+      () => {
+        if (isMobile()) sidebar.classList.remove("is-open-mobile");
+      },
+      { signal },
+    );
   });
 }
 
 function setupPlayerListeners(): void {
-  onStateChange(updatePlayerUI);
   onError(handlePlaybackError);
 
-  document.addEventListener('radiova:station-selected', (event) => {
+  document.addEventListener("radiova:station-selected", (event) => {
     const station = (event as CustomEvent<Station>).detail;
     if (station.endpoints.length) selectStation(station);
   });
 
-  document.addEventListener('radiova:player-toggle', () => {
-    if (getState() === 'playing') {
-      pause();
-    } else if (currentStation) {
-      selectStation(currentStation, currentEndpointIndex);
+  document.addEventListener("radiova:player-toggle", togglePlayback);
+
+  document.addEventListener("click", (event) => {
+    const target = event.target as HTMLElement;
+    if (target.closest(".stream-error__retry")) {
+      retryCurrentStation();
     }
   });
 
-  document.addEventListener('radiova:stations-changed', (event) => {
+  document.addEventListener("radiova:stations-changed", (event) => {
     currentStations = (event as CustomEvent<Station[]>).detail;
   });
 }
 
-function setupHeaderControls(): void {
-  const headerLogo = $('header-station-logo');
-  if (headerLogo) {
-    headerLogo.addEventListener('click', () => {
-      if (getState() === 'playing') {
-        pause();
-      } else if (currentStation) {
-        selectStation(currentStation, currentEndpointIndex);
-      }
-    });
-  }
+const PLACEHOLDER_IMG = "/assets/images/station-placeholder.svg";
 
-  const headerVol = $('header-volume') as HTMLInputElement | null;
-  if (headerVol) {
-    headerVol.addEventListener('input', () => {
-      setVolume(parseFloat(headerVol.value));
-    });
-  }
-
-  const headerMute = $('header-mute-btn');
-  if (headerMute) headerMute.addEventListener('click', toggleMute);
-}
-
-function setupDashboardControls(): void {
-  const toggleBtn = $('dashboard-station-square');
-  if (toggleBtn) {
-    toggleBtn.addEventListener('click', () => {
-      if (getState() === 'playing') {
-        pause();
-      } else if (currentStation) {
-        selectStation(currentStation, currentEndpointIndex);
-      }
-    });
-  }
-
-  const prevBtn = $('dashboard-prev');
-  if (prevBtn) prevBtn.addEventListener('click', () => { navigateStation(-1); });
-
-  const nextBtn = $('dashboard-next');
-  if (nextBtn) nextBtn.addEventListener('click', () => { navigateStation(1); });
-
-  const playToggle = $('dashboard-play-toggle');
-  if (playToggle) {
-    playToggle.addEventListener('click', () => {
-      if (getState() === 'playing') {
-        pause();
-      } else if (currentStation) {
-        selectStation(currentStation, currentEndpointIndex);
-      }
-    });
-  }
-
-  const dbVol = $('dashboard-volume') as HTMLInputElement | null;
-  if (dbVol) {
-    dbVol.addEventListener('input', () => {
-      setVolume(parseFloat(dbVol.value));
-    });
-  }
-
-  const dbMute = $('dashboard-mute-btn');
-  if (dbMute) dbMute.addEventListener('click', toggleMute);
-
-  const refreshBtn = $('refresh-playlists');
-  if (refreshBtn) {
-    refreshBtn.addEventListener('click', () => {
-      const statusEl = $('update-status');
-      if (statusEl) statusEl.textContent = 'Updating...';
-      document.dispatchEvent(new CustomEvent('radiova:refresh'));
-    });
-  }
-
-  const pwaBtn = $('pwa-install-btn');
-  if (pwaBtn) {
-    pwaBtn.addEventListener('click', () => { void promptInstall(); });
-  }
-
-  document.addEventListener('click', (e) => {
-    const target = e.target as HTMLElement;
-    if (target.classList.contains('stream-btn') && currentStation) {
-      const stationId = target.dataset['stationId'];
-      const endpointUrl = target.dataset['url'];
-      if (stationId === currentStation.id && endpointUrl) {
-        const endpointIndex = currentStation.endpoints.findIndex((ep) => ep.url === endpointUrl);
-        if (endpointIndex >= 0) selectStation(currentStation, endpointIndex);
-      }
-    }
-  });
-}
-
-const PLACEHOLDER_IMG = '/assets/images/station-placeholder.svg';
-
-const siteIsSecure = window.location.protocol === 'https:';
+const siteIsSecure = window.location.protocol === "https:";
 
 function safeArtworkUrl(url: string | undefined, context: string): string {
-  if (!url) return '';
-  if (url.startsWith('https://')) return url;
-  if (url.startsWith('http://')) {
+  if (!url) return "";
+  if (url.startsWith("https://")) return url;
+  if (url.startsWith("http://")) {
     if (siteIsSecure) {
-      diagnostics.add('artwork ' + context + ': mixed-content blocked ' + url.slice(0, 60));
-      return '';
+      diagnostics.add("artwork " + context + ": mixed-content blocked " + url.slice(0, 60));
+      return "";
     }
     return url;
   }
-  diagnostics.add('artwork ' + context + ': invalid scheme ' + url.slice(0, 60));
-  return '';
+  diagnostics.add("artwork " + context + ": invalid scheme " + url.slice(0, 60));
+  return "";
 }
 
-function updatePlayerUI(state: string): void {
-  updateHeaderPlayer(state);
-  updateDashboardPlayer(state);
-  updateEqualizer(state);
-}
-
-function updateHeaderPlayer(state: string): void {
-  const toggleIcon = $('header-toggle-icon');
+function updateHeaderPlayer(state: SharedPlayerState): void {
+  const toggleIcon = $("header-toggle-icon");
   if (toggleIcon) {
-    toggleIcon.innerHTML = state === 'playing' ? PAUSE_ICON_FULL : PLAY_ICON_FULL;
+    toggleIcon.innerHTML = iconForStatus(state.status);
+    toggleIcon.classList.toggle("is-loading", isLoadingStatus(state.status));
+    toggleIcon.classList.toggle("has-error", state.status === "error");
+  }
+  const status = $("header-player-status");
+  if (status) {
+    status.textContent = state.statusLabel;
+    status.setAttribute("title", state.statusLabel);
   }
 }
 
-function updateDashboardPlayer(state: string): void {
-  const dp = $('dashboard-player');
+function updateDashboardPlayer(state: SharedPlayerState): void {
+  const dp = $("dashboard-player");
   if (!dp) return;
 
-  const playIconEl = $('dashboard-play-icon');
+  const playIconEl = $("dashboard-play-icon");
   if (playIconEl) {
-    playIconEl.innerHTML = state === 'playing' ? PAUSE_ICON_FULL : PLAY_ICON_FULL;
+    playIconEl.innerHTML = iconForStatus(state.status);
+    playIconEl.classList.toggle("is-loading", isLoadingStatus(state.status));
+    playIconEl.classList.toggle("has-error", state.status === "error");
   }
 
-  const toggleIcon = $('dashboard-toggle-icon');
+  const toggleIcon = $("dashboard-toggle-icon");
   if (toggleIcon) {
-    toggleIcon.innerHTML = state === 'playing' ? PAUSE_ICON_FULL : PLAY_ICON_FULL;
+    toggleIcon.innerHTML = iconForStatus(state.status);
+    toggleIcon.classList.toggle("is-loading", isLoadingStatus(state.status));
+    toggleIcon.classList.toggle("has-error", state.status === "error");
   }
 
-  const toggleAttr = $('dashboard-station-square');
+  const toggleAttr = $("dashboard-station-square");
   if (toggleAttr) {
-    toggleAttr.setAttribute('aria-label', state === 'playing' ? 'Pause' : 'Play');
+    toggleAttr.setAttribute("aria-label", ariaLabelForStatus(state.status));
+  }
+
+  const status = $("dashboard-player-status");
+  if (status) {
+    status.textContent = state.statusLabel;
+    status.setAttribute("title", state.statusLabel);
   }
 }
 
@@ -397,7 +539,7 @@ function updateEqualizer(state: string): void {
     equalizer.setAudioElement(audioEl);
   }
   if (equalizer) {
-    if (state === 'playing') {
+    if (state === "playing") {
       equalizer.start();
     } else {
       equalizer.stop();
@@ -406,7 +548,7 @@ function updateEqualizer(state: string): void {
 }
 
 function setStationImages(station: Station): void {
-  const logoUrl = safeArtworkUrl(station.logo, 'player');
+  const logoUrl = safeArtworkUrl(station.logo, "player");
 
   function setImg(imgId: string, alt: string): void {
     const img = $(imgId) as HTMLImageElement | null;
@@ -414,26 +556,32 @@ function setStationImages(station: Station): void {
     if (logoUrl) {
       img.src = logoUrl;
       img.alt = alt;
-      img.onerror = () => { diagnostics.add('artwork player: network error for ' + logoUrl.slice(0, 60)); img.src = PLACEHOLDER_IMG; img.onerror = null; };
-      img.onload = () => { img.style.display = ''; };
-      img.style.display = '';
+      img.onerror = () => {
+        diagnostics.add("artwork player: network error for " + logoUrl.slice(0, 60));
+        img.src = PLACEHOLDER_IMG;
+        img.onerror = null;
+      };
+      img.onload = () => {
+        img.style.display = "";
+      };
+      img.style.display = "";
     } else {
       img.src = PLACEHOLDER_IMG;
       img.alt = alt;
       img.onerror = null;
-      img.style.display = '';
+      img.style.display = "";
     }
   }
 
-  setImg('header-station-image', station.name);
-  setImg('dashboard-station-image', station.name);
+  setImg("header-station-image", station.name);
+  setImg("dashboard-station-image", station.name);
 
-  const sq = $('dashboard-station-square');
+  const sq = $("dashboard-station-square");
   if (sq) {
     if (logoUrl) {
-      sq.classList.remove('no-image');
+      sq.classList.remove("no-image");
     } else {
-      sq.classList.add('no-image');
+      sq.classList.add("no-image");
     }
   }
 }
@@ -441,16 +589,33 @@ function setStationImages(station: Station): void {
 function selectStation(station: Station, endpointIndex = 0): void {
   const ep = station.endpoints[endpointIndex];
   if (!ep) {
-    diagnostics.add('selectStation: no endpoint at index ' + String(endpointIndex) + ' for "' + station.name + '"');
+    diagnostics.add(
+      "selectStation: no endpoint at index " +
+        String(endpointIndex) +
+        ' for "' +
+        station.name +
+        '"',
+    );
     return;
   }
 
-  const bitrateStr = ep.bitrate ? String(ep.bitrate) + 'k' : '?';
-  diagnostics.add('selectStation: "' + station.name + '" -> ' + ep.url + ' (' + (ep.codec || '?') + '/' + bitrateStr + ')');
+  const bitrateStr = ep.bitrate ? String(ep.bitrate) + "k" : "?";
+  diagnostics.add(
+    'selectStation: "' +
+      station.name +
+      '" -> ' +
+      ep.url +
+      " (" +
+      (ep.codec || "?") +
+      "/" +
+      bitrateStr +
+      ")",
+  );
 
   currentStation = station;
   currentPlayId = station.id;
   currentEndpointIndex = endpointIndex;
+  setPlaybackStatus(endpointIndex > 0 ? "retrying" : "loading");
 
   const info: PlayerStationInfo = {
     stationId: station.id,
@@ -458,19 +623,31 @@ function selectStation(station: Station, endpointIndex = 0): void {
     artworkUrl: station.logo || null,
     endpointId: ep.id,
     endpointUrl: ep.url,
-    endpointLabel: [ep.codec, ep.bitrate ? String(ep.bitrate) + 'k' : ''].filter(Boolean).join(' ') || null,
+    endpointLabel:
+      [ep.codec, ep.bitrate ? String(ep.bitrate) + "k" : ""].filter(Boolean).join(" ") || null,
   };
   setStationInfo(info);
 
   const audioEl = getAudioElement();
   if (audioEl) {
-    diagnostics.add('audio readyState=' + String(audioEl.readyState) + ' networkState=' + String(audioEl.networkState) + ' src="' + (audioEl.src.slice(0, 60) || '') + '"');
+    diagnostics.add(
+      "audio readyState=" +
+        String(audioEl.readyState) +
+        " networkState=" +
+        String(audioEl.networkState) +
+        ' src="' +
+        (audioEl.src.slice(0, 60) || "") +
+        '"',
+    );
   }
+
+  clearStreamError();
 
   if (equalizer) {
     equalizer.prepare();
   }
 
+  startStreamTimeout();
   play(ep.url);
 
   updateStationInfo(station);
@@ -481,47 +658,55 @@ function selectStation(station: Station, endpointIndex = 0): void {
   void saveSettings(settings);
   void addRecent(station.id);
   updateStreamSelector(station);
-  document.dispatchEvent(new CustomEvent('radiova:player-station-changed', { detail: station.id }));
+  document.dispatchEvent(new CustomEvent("radiova:player-station-changed", { detail: station.id }));
 }
 
 function updateStationInfo(station: Station): void {
-  const headerTitle = $('header-station-title');
+  const headerTitle = $("header-station-title");
   if (headerTitle) headerTitle.textContent = station.name;
 
-  const dashboardTitle = $('dashboard-station-title');
+  const dashboardTitle = $("dashboard-station-title");
   if (dashboardTitle) dashboardTitle.textContent = station.name;
-
-  const linkHref = station.logo || '#';
-
-  const headerLink = $('header-station-link') as HTMLAnchorElement | null;
-  if (headerLink) headerLink.href = linkHref;
-
-  const dashboardLink = $('dashboard-station-link') as HTMLAnchorElement | null;
-  if (dashboardLink) dashboardLink.href = linkHref;
 }
 
 function updateStreamSelector(station: Station): void {
-  updateSelector('header-stream-selector', station);
-  updateSelector('dashboard-streams', station);
+  updateSelector("header-stream-selector", station);
+  updateSelector("dashboard-streams", station);
 }
 
 function updateSelector(elId: string, station: Station): void {
   const el = $(elId);
   if (!el) return;
   if (station.endpoints.length <= 1) {
-    el.innerHTML = '';
+    el.innerHTML = "";
     return;
   }
-  el.innerHTML = station.endpoints.map((ep) => {
-    const isActive = getCurrentUrl() === ep.url;
-    const label = [ep.codec, ep.bitrate ? String(ep.bitrate) + 'k' : ''].filter(Boolean).join(' ') || 'Stream';
-    return '<button class="stream-btn' + (isActive ? ' is-active' : '') + '" data-station-id="' + station.id + '" data-url="' + ep.url + '" type="button">' + escapeHtml(label) + '</button>';
-  }).join('');
+  el.innerHTML = station.endpoints
+    .map((ep) => {
+      const isActive = getCurrentUrl() === ep.url;
+      const label =
+        [ep.codec, ep.bitrate ? String(ep.bitrate) + "k" : ""].filter(Boolean).join(" ") ||
+        "Stream";
+      return (
+        '<button class="stream-btn' +
+        (isActive ? " is-active" : "") +
+        '" data-station-id="' +
+        station.id +
+        '" data-url="' +
+        ep.url +
+        '" type="button">' +
+        escapeHtml(label) +
+        "</button>"
+      );
+    })
+    .join("");
 }
 
 function navigateStation(dir: number): void {
   if (currentStations.length === 0) return;
-  const idx = currentPlayId ? currentStations.findIndex((station) => station.id === currentPlayId) : -1;
+  const idx = currentPlayId
+    ? currentStations.findIndex((station) => station.id === currentPlayId)
+    : -1;
   let nextIdx: number;
   if (idx === -1) {
     nextIdx = 0;
@@ -533,51 +718,156 @@ function navigateStation(dir: number): void {
 }
 
 function handlePlaybackError(): void {
+  clearStreamTimeout();
   const audioEl = getAudioElement();
+  let errorCode = "?";
+  let errorMessage = "?";
   if (audioEl) {
     const mc = audioEl.error;
-    const code = mc ? String(mc.code) : '?';
-    const msg = mc ? (mc.message || '?') : '?';
-    diagnostics.add('playback error: code=' + code + ' message="' + msg + '" readyState=' + String(audioEl.readyState) + ' networkState=' + String(audioEl.networkState));
+    errorCode = mc ? String(mc.code) : "?";
+    errorMessage = mc ? mc.message || "?" : "?";
+    diagnostics.add(
+      "playback error: code=" +
+        errorCode +
+        ' message="' +
+        errorMessage +
+        '" readyState=' +
+        String(audioEl.readyState) +
+        " networkState=" +
+        String(audioEl.networkState),
+    );
   } else {
-    diagnostics.add('playback error: no audio element');
+    diagnostics.add("playback error: no audio element");
   }
+
+  const currentEndpoint = currentStation?.endpoints[currentEndpointIndex] ?? null;
+  queueStreamReport({
+    stationId: currentStation?.id ?? null,
+    stationName: currentStation?.name ?? null,
+    endpointId: currentEndpoint?.id ?? null,
+    endpointUrl: currentEndpoint?.url ?? null,
+    errorCode,
+    errorMessage,
+    createdAt: new Date().toISOString(),
+  });
 
   if (currentStation && currentEndpointIndex < currentStation.endpoints.length - 1) {
     const nextIdx = currentEndpointIndex + 1;
     const nextEp = currentStation.endpoints[nextIdx];
-    const nextUrl = nextEp ? nextEp.url.slice(0, 60) : '?';
-    diagnostics.add('fallback: endpoint ' + String(currentEndpointIndex) + ' failed, trying ' + String(nextIdx) + ' (' + nextUrl + ')');
+    const nextUrl = nextEp ? nextEp.url.slice(0, 60) : "?";
+    diagnostics.add(
+      "fallback: endpoint " +
+        String(currentEndpointIndex) +
+        " failed, trying " +
+        String(nextIdx) +
+        " (" +
+        nextUrl +
+        ")",
+    );
+    setPlaybackStatus("retrying");
     selectStation(currentStation, nextIdx);
     return;
   }
 
   if (currentStation) {
-    diagnostics.add('all ' + String(currentStation.endpoints.length) + ' endpoints exhausted for "' + currentStation.name + '"');
+    diagnostics.add(
+      "all " +
+        String(currentStation.endpoints.length) +
+        ' endpoints exhausted for "' +
+        currentStation.name +
+        '"',
+    );
   }
 
-  const status = $('update-status');
-  if (status) status.textContent = 'Unable to play this stream';
+  setPlaybackStatus("error", "Unable to play this stream");
+  showStreamError("Unable to play this stream");
+}
+
+function showStreamError(msg: string): void {
+  const status = $("update-status");
+  if (!status) return;
+  status.innerHTML =
+    '<span class="stream-error">' +
+    '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>' +
+    " " +
+    escapeHtml(msg) +
+    ' <button class="stream-error__retry" type="button">Retry</button>' +
+    "</span>";
+}
+
+function clearStreamError(): void {
+  const status = $("update-status");
+  if (status) status.innerHTML = "";
+}
+
+function retryCurrentStation(): void {
+  if (!currentStation) return;
+  selectStation(currentStation, 0);
+}
+
+function handlePlaybackTimeout(): void {
+  diagnostics.add(
+    "playback timeout: endpoint=" +
+      String(currentEndpointIndex) +
+      " url=" +
+      (currentStation?.endpoints[currentEndpointIndex]?.url.slice(0, 60) || "?"),
+  );
+  handlePlaybackError();
+}
+
+function startStreamTimeout(): void {
+  clearStreamTimeout();
+  streamTimeoutId = window.setTimeout(handlePlaybackTimeout, STREAM_TIMEOUT_MS);
+}
+
+function clearStreamTimeout(): void {
+  if (streamTimeoutId === null) return;
+  window.clearTimeout(streamTimeoutId);
+  streamTimeoutId = null;
+}
+
+function updateStreamTimeout(status: PlayerState): void {
+  if (status === "playing" || status === "paused" || status === "idle" || status === "error") {
+    clearStreamTimeout();
+  }
+}
+
+function iconForStatus(status: PlayerState): string {
+  if (status === "playing") return PAUSE_ICON_FULL;
+  if (isLoadingStatus(status)) return SPINNER_ICON_FULL;
+  if (status === "error") return WARNING_ICON_FULL;
+  return PLAY_ICON_FULL;
+}
+
+function isLoadingStatus(status: PlayerState): boolean {
+  return status === "loading" || status === "waiting" || status === "retrying";
+}
+
+function ariaLabelForStatus(status: PlayerState): string {
+  if (status === "playing") return "Pause";
+  if (isLoadingStatus(status)) return "Loading stream";
+  if (status === "error") return "Stream error. Retry";
+  return "Play";
 }
 
 function updatePWAButton(): void {
-  const btn = $('pwa-install-btn');
+  const btn = $("pwa-install-btn");
   if (!btn) return;
 
   if (isStandalone()) {
-    btn.classList.add('is-hidden');
+    btn.classList.add("is-hidden");
     return;
   }
 
   const state = getPWAState();
-  if (state === 'installable') {
-    btn.classList.remove('is-hidden');
+  if (state === "installable") {
+    btn.classList.remove("is-hidden");
   }
 }
 
 function syncAllVolumeSliders(): void {
   const vol = getVolume();
-  const sliders = ['header-volume', 'dashboard-volume'];
+  const sliders = ["header-volume", "dashboard-volume"];
   for (const id of sliders) {
     const el = $(id) as HTMLInputElement | null;
     if (el) el.value = String(vol);
@@ -586,60 +876,47 @@ function syncAllVolumeSliders(): void {
 
 function syncAllMuteButtons(): void {
   const muted = isMuted();
-  const muteBtns = ['header-mute-btn', 'dashboard-mute-btn'];
+  const muteBtns = ["header-mute-btn", "dashboard-mute-btn"];
   for (const id of muteBtns) {
     const btn = $(id);
     if (!btn) continue;
-    btn.setAttribute('aria-label', muted ? 'Unmute' : 'Mute');
-    btn.classList.toggle('is-muted', muted);
+    btn.setAttribute("aria-label", muted ? "Unmute" : "Mute");
+    btn.classList.toggle("is-muted", muted);
   }
 }
 
 onPWAStateChange(updatePWAButton);
 
 function escapeHtml(str: string): string {
-  const div = document.createElement('div');
+  const div = document.createElement("div");
   div.textContent = str;
   return div.innerHTML;
 }
 
 function updateLanguageActiveState(): void {
   const path = window.location.pathname;
-  const locale = path.startsWith('/uk/') || path === '/uk' ? 'uk' : path.startsWith('/de/') || path === '/de' ? 'de' : 'en';
-  for (const l of ['en', 'de', 'uk']) {
-    const link = document.getElementById('lang-' + l);
+  const locale =
+    path.startsWith("/uk/") || path === "/uk"
+      ? "uk"
+      : path.startsWith("/de/") || path === "/de"
+        ? "de"
+        : "en";
+  for (const l of ["en", "de", "uk"]) {
+    const link = document.getElementById("lang-" + l);
     if (!link) continue;
     const isActive = l === locale;
-    link.setAttribute('aria-current', isActive ? 'true' : '');
-    link.classList.toggle('is-active', isActive);
+    link.setAttribute("aria-current", isActive ? "true" : "");
+    link.classList.toggle("is-active", isActive);
   }
 }
 
 function onPageNavigation(): void {
-  applyPlayerVisibility();
+  bindAll();
   updateLanguageActiveState();
-  bindSidebar();
-  syncAllVolumeSliders();
-  syncAllMuteButtons();
-
-  const eqLeft = $('dashboard-equalizer-left') as HTMLCanvasElement | null;
-  const eqRight = $('dashboard-equalizer-right') as HTMLCanvasElement | null;
-
-  if (equalizer) {
-    equalizer.rebindCanvases(eqLeft, eqRight);
-    const audioEl = getAudioElement();
-    if (audioEl) equalizer.setAudioElement(audioEl);
-    const state = getState();
-    if (state === 'playing') equalizer.start();
-  } else if (eqLeft && eqRight) {
-    equalizer = createEqualizer(eqLeft, eqRight);
-    const audioEl = getAudioElement();
-    if (audioEl) equalizer.setAudioElement(audioEl);
-    const state = getState();
-    if (state === 'playing') equalizer.start();
-  }
 }
 
-document.addEventListener('astro:page-load', onPageNavigation);
+document.addEventListener("astro:page-load", onPageNavigation);
 
-document.addEventListener('DOMContentLoaded', () => { void init(); });
+document.addEventListener("DOMContentLoaded", () => {
+  void init();
+});

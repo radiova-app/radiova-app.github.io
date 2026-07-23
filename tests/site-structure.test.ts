@@ -133,9 +133,9 @@ describe("AppShell layout", () => {
   });
 
   it("has Home sidebar item", () => {
-    expect(appShell).toContain("labelEn: \"Home\"");
-    expect(appShell).toContain("labelUk: \"Головна\"");
-    expect(appShell).toContain("labelDe: \"Start\"");
+    expect(appShell).toContain('labelEn: "Home"');
+    expect(appShell).toContain('labelUk: "Головна"');
+    expect(appShell).toContain('labelDe: "Start"');
   });
 
   it("has Playlists sidebar item", () => {
@@ -220,7 +220,7 @@ describe("navigation - top menu removed", () => {
   const header = readFile("src/components/Header.astro");
 
   it("no longer has nav links in the header", () => {
-    expect(header).not.toContain('header__nav');
+    expect(header).not.toContain("header__nav");
   });
 
   it("still has header logo", () => {
@@ -310,11 +310,146 @@ describe("player service", () => {
 
   it("sets crossOrigin anonymous for Web Audio compatibility", () => {
     expect(player).toContain("el.src = url");
-    expect(player).toContain("crossOrigin = 'anonymous'");
+    expect(player).toContain('crossOrigin = "anonymous"');
   });
 
   it("exports getAudioElement", () => {
     expect(player).toContain("export function getAudioElement");
+  });
+
+  it("uses media events as playback state authority", () => {
+    for (const eventName of [
+      "loadstart",
+      "waiting",
+      "stalled",
+      "canplay",
+      "playing",
+      "pause",
+      "ended",
+      "error",
+      "abort",
+      "emptied",
+    ]) {
+      expect(player).toContain(`addEventListener("${eventName}"`);
+    }
+  });
+
+  it("does not set playing from play promise", () => {
+    const playImpl = player.match(/export function play\([\s\S]+?\n\}/);
+    expect(playImpl).not.toBeNull();
+    if (playImpl) expect(playImpl[0]).not.toContain('setState("playing"');
+  });
+
+  it("maps loadstart, waiting, playing, and pause to real states", () => {
+    expect(player).toContain('addEventListener("loadstart"');
+    expect(player).toContain('setState("loading")');
+    expect(player).toContain('addEventListener("waiting"');
+    expect(player).toContain('setState("waiting")');
+    expect(player).toContain('addEventListener("playing"');
+    expect(player).toContain('setState("playing")');
+    expect(player).toContain('addEventListener("pause"');
+    expect(player).toContain('setState("paused")');
+  });
+
+  it("has localized playback status labels", () => {
+    for (const label of [
+      "No station selected",
+      "Loading...",
+      "Playing",
+      "Paused",
+      "Waiting for stream...",
+      "Trying another stream...",
+      "Stream error",
+    ]) {
+      expect(player).toContain(label);
+    }
+    for (const label of [
+      "Не вибрано станцію",
+      "Завантаження...",
+      "Грає",
+      "Призупинено",
+      "Очікування потоку...",
+      "Спроба іншого потоку...",
+      "Помилка потоку",
+    ]) {
+      expect(player).toContain(label);
+    }
+    for (const label of [
+      "Kein Sender ausgewählt",
+      "Wird geladen...",
+      "Wiedergabe",
+      "Pausiert",
+      "Stream wird erwartet...",
+      "Anderer Stream wird versucht...",
+      "Streamfehler",
+    ]) {
+      expect(player).toContain(label);
+    }
+  });
+});
+
+describe("media-event player UI", () => {
+  const app = readFile("src/scripts/app.ts");
+  const dashboard = readFile("src/scripts/dashboard.ts");
+  const appShell = readFile("src/layouts/AppShell.astro");
+  const home = readFile("src/pages/index.astro");
+  const styles = readFile("src/styles/global.scss");
+
+  it("click handlers issue commands without directly setting playing", () => {
+    expect(app).toContain('addEventListener("click", togglePlayback');
+    expect(app).not.toContain("button.innerHTML = pauseIcon");
+    expect(app).not.toContain('status = "playing"');
+  });
+
+  it("large and compact players have visible status elements", () => {
+    expect(home).toContain("dashboard-player-status");
+    expect(appShell).toContain("header-player-status");
+  });
+
+  it("uses spinner for loading, waiting, and retrying states", () => {
+    expect(app).toContain("isLoadingStatus(status)");
+    expect(app).toContain("SPINNER_ICON_FULL");
+    expect(dashboard).toContain("SPINNER_ICON_SVG");
+    expect(dashboard).toContain(
+      'status === "loading" || status === "waiting" || status === "retrying"',
+    );
+  });
+
+  it("uses warning icon after all endpoints fail", () => {
+    expect(app).toContain('setPlaybackStatus("error"');
+    expect(app).toContain("WARNING_ICON_FULL");
+    expect(dashboard).toContain("WARNING_ICON_SVG");
+  });
+
+  it("row icon follows shared player state, not click-local state", () => {
+    expect(dashboard).toContain("let playerState: SharedPlayerState = getSharedPlayerState()");
+    expect(dashboard).toContain("onChange((state) =>");
+    expect(dashboard).toContain('const rowStatus = isSelected ? playerState.status : "idle"');
+    expect(dashboard).not.toContain('const isPlaying = isSelected && getState() === "playing"');
+  });
+
+  it("large and compact player icon mapping follows shared state", () => {
+    expect(app).toContain("function iconForStatus(status: PlayerState)");
+    expect(app).toContain('if (status === "playing") return PAUSE_ICON_FULL');
+    expect(app).toContain('if (status === "error") return WARNING_ICON_FULL');
+  });
+
+  it("has timeout and retrying state for slow or failed streams", () => {
+    expect(app).toContain("STREAM_TIMEOUT_MS");
+    expect(app).toContain("startStreamTimeout()");
+    expect(app).toContain('setPlaybackStatus("retrying")');
+  });
+
+  it("removes green active control style but keeps active row outline", () => {
+    expect(styles).toContain(".station-row.is-active");
+    expect(styles).toContain("border-color: $accent");
+    expect(styles).not.toContain(".station-row__play.is-active");
+    expect(styles).not.toContain("border-color: rgba(34, 197, 94");
+  });
+
+  it("supports reduced-motion spinner fallback", () => {
+    expect(styles).toContain("loading-spinner");
+    expect(styles).toContain("prefers-reduced-motion: reduce");
   });
 });
 
@@ -336,7 +471,11 @@ describe("local playlist management", () => {
   });
 
   it("includes playlist controls in every locale", () => {
-    for (const page of ["src/pages/playlists.astro", "src/pages/uk/playlists.astro", "src/pages/de/playlists.astro"]) {
+    for (const page of [
+      "src/pages/playlists.astro",
+      "src/pages/uk/playlists.astro",
+      "src/pages/de/playlists.astro",
+    ]) {
       const content = readFile(page);
       expect(content).toContain("custom-playlist-form");
       expect(content).toContain("import-m3u-btn");
@@ -355,7 +494,11 @@ describe("reset local data", () => {
   });
 
   it("includes the reset action in every privacy page", () => {
-    for (const page of ["src/pages/privacy.astro", "src/pages/uk/privacy.astro", "src/pages/de/privacy.astro"]) {
+    for (const page of [
+      "src/pages/privacy.astro",
+      "src/pages/uk/privacy.astro",
+      "src/pages/de/privacy.astro",
+    ]) {
       expect(readFile(page)).toContain("reset-data-btn");
     }
   });
@@ -374,7 +517,11 @@ describe("PWA shell", () => {
   });
 
   it("shows iOS installation instructions on every downloads page", () => {
-    for (const page of ["src/pages/downloads.astro", "src/pages/uk/downloads.astro", "src/pages/de/downloads.astro"]) {
+    for (const page of [
+      "src/pages/downloads.astro",
+      "src/pages/uk/downloads.astro",
+      "src/pages/de/downloads.astro",
+    ]) {
       expect(readFile(page)).toContain("pwa.ios");
     }
   });
@@ -432,7 +579,12 @@ describe("SVG icon scoping", () => {
 
   it("has no unscoped svg width or height", () => {
     const lines = scss.split("\n");
-    const bareSvgWidth = lines.filter((l) => /^\s*svg\s*\{/.test(l) && !l.includes("max") && (l.includes("width") || l.includes("height")));
+    const bareSvgWidth = lines.filter(
+      (l) =>
+        /^\s*svg\s*\{/.test(l) &&
+        !l.includes("max") &&
+        (l.includes("width") || l.includes("height")),
+    );
     expect(bareSvgWidth).toHaveLength(0);
   });
 });
@@ -476,32 +628,55 @@ describe("player locations", () => {
   });
 
   it("controls order in home page: play/pause first, prev, next, mute", () => {
-    const ctrlSection = homePage.slice(homePage.indexOf('class="controls"'), homePage.indexOf('</div>', homePage.indexOf('class="controls"')));
-    expect(ctrlSection.indexOf("dashboard-play-toggle")).toBeLessThan(ctrlSection.indexOf("dashboard-prev"));
-    expect(ctrlSection.indexOf("dashboard-prev")).toBeLessThan(ctrlSection.indexOf("dashboard-next"));
-    expect(ctrlSection.indexOf("dashboard-next")).toBeLessThan(ctrlSection.indexOf("dashboard-mute-btn"));
+    const ctrlSection = homePage.slice(
+      homePage.indexOf('class="controls"'),
+      homePage.indexOf("</div>", homePage.indexOf('class="controls"')),
+    );
+    expect(ctrlSection.indexOf("dashboard-play-toggle")).toBeLessThan(
+      ctrlSection.indexOf("dashboard-prev"),
+    );
+    expect(ctrlSection.indexOf("dashboard-prev")).toBeLessThan(
+      ctrlSection.indexOf("dashboard-next"),
+    );
+    expect(ctrlSection.indexOf("dashboard-next")).toBeLessThan(
+      ctrlSection.indexOf("dashboard-mute-btn"),
+    );
   });
 });
 
 describe("dashboard-player only on home pages", () => {
-  const homePages = ["src/pages/index.astro", "src/pages/uk/index.astro", "src/pages/de/index.astro"];
+  const homePages = [
+    "src/pages/index.astro",
+    "src/pages/uk/index.astro",
+    "src/pages/de/index.astro",
+  ];
   const nonHomePages = [
-    "src/pages/downloads.astro", "src/pages/uk/downloads.astro", "src/pages/de/downloads.astro",
-    "src/pages/playlists.astro", "src/pages/uk/playlists.astro", "src/pages/de/playlists.astro",
-    "src/pages/about.astro", "src/pages/uk/about.astro", "src/pages/de/about.astro",
-    "src/pages/help.astro", "src/pages/uk/help.astro", "src/pages/de/help.astro",
-    "src/pages/privacy.astro", "src/pages/uk/privacy.astro", "src/pages/de/privacy.astro",
+    "src/pages/downloads.astro",
+    "src/pages/uk/downloads.astro",
+    "src/pages/de/downloads.astro",
+    "src/pages/playlists.astro",
+    "src/pages/uk/playlists.astro",
+    "src/pages/de/playlists.astro",
+    "src/pages/about.astro",
+    "src/pages/uk/about.astro",
+    "src/pages/de/about.astro",
+    "src/pages/help.astro",
+    "src/pages/uk/help.astro",
+    "src/pages/de/help.astro",
+    "src/pages/privacy.astro",
+    "src/pages/uk/privacy.astro",
+    "src/pages/de/privacy.astro",
   ];
 
   for (const page of homePages) {
     it(`${page} contains dashboard-player`, () => {
-      expect(readFile(page)).toContain('dashboard-player');
+      expect(readFile(page)).toContain("dashboard-player");
     });
   }
 
   for (const page of nonHomePages) {
     it(`${page} does not contain dashboard-player`, () => {
-      expect(readFile(page)).not.toContain('dashboard-player');
+      expect(readFile(page)).not.toContain("dashboard-player");
     });
   }
 });
@@ -550,7 +725,7 @@ describe("safe artwork URL handling", () => {
   });
 
   it("dashboard.ts handles mixed-content HTTP artwork", () => {
-    expect(dashboard).toContain('mixed-content blocked');
+    expect(dashboard).toContain("mixed-content blocked");
   });
 
   it("dashboard.ts uses PLACEHOLDER_IMG fallback", () => {
@@ -585,7 +760,12 @@ describe("build output structure", () => {
   });
 
   it("all pages still have header-player", () => {
-    for (const p of ["dist/uk/index.html", "dist/uk/playlists/index.html", "dist/de/index.html", "dist/index.html"]) {
+    for (const p of [
+      "dist/uk/index.html",
+      "dist/uk/playlists/index.html",
+      "dist/de/index.html",
+      "dist/index.html",
+    ]) {
       expect(readFile(p)).toContain("header-player");
     }
   });
@@ -620,13 +800,24 @@ describe("build output structure", () => {
   });
 
   it("all built pages contain sidebar", () => {
-    for (const p of ["dist/uk/index.html", "dist/uk/playlists/index.html", "dist/uk/about/index.html", "dist/de/index.html", "dist/index.html"]) {
-      expect(readFile(p)).toContain("id=\"sidebar\"");
+    for (const p of [
+      "dist/uk/index.html",
+      "dist/uk/playlists/index.html",
+      "dist/uk/about/index.html",
+      "dist/de/index.html",
+      "dist/index.html",
+    ]) {
+      expect(readFile(p)).toContain('id="sidebar"');
     }
   });
 
   it("all built pages contain menu-icon SVGs", () => {
-    for (const p of ["dist/uk/index.html", "dist/uk/playlists/index.html", "dist/de/index.html", "dist/index.html"]) {
+    for (const p of [
+      "dist/uk/index.html",
+      "dist/uk/playlists/index.html",
+      "dist/de/index.html",
+      "dist/index.html",
+    ]) {
       expect(readFile(p)).toContain("menu-icon");
     }
   });
@@ -687,13 +878,13 @@ describe("View Transitions and persistent audio", () => {
   });
 
   it("uses persistent audio element from DOM in player.ts", () => {
-    expect(player).toContain("document.getElementById('persistent-audio')");
+    expect(player).toContain('document.getElementById("persistent-audio")');
   });
 
   it("app.ts is bundled via inline import, not direct src reference", () => {
     const appShell = readFile("src/layouts/AppShell.astro");
-    expect(appShell).toContain("import \"../scripts/app.ts\"");
-    expect(appShell).not.toContain("src=\"/src/scripts/app.ts\"");
+    expect(appShell).toContain('import "../scripts/app.ts"');
+    expect(appShell).not.toContain('src="/src/scripts/app.ts"');
   });
 
   it("listens for astro:page-load in app.ts", () => {
@@ -759,12 +950,24 @@ describe("language switcher active state", () => {
 describe("no /src/ references in build output", () => {
   it("dist HTML has no /src/ paths", () => {
     const files = [
-      "dist/index.html", "dist/uk/index.html", "dist/de/index.html",
-      "dist/playlists/index.html", "dist/uk/playlists/index.html", "dist/de/playlists/index.html",
-      "dist/about/index.html", "dist/uk/about/index.html", "dist/de/about/index.html",
-      "dist/downloads/index.html", "dist/uk/downloads/index.html", "dist/de/downloads/index.html",
-      "dist/help/index.html", "dist/uk/help/index.html", "dist/de/help/index.html",
-      "dist/privacy/index.html", "dist/uk/privacy/index.html", "dist/de/privacy/index.html",
+      "dist/index.html",
+      "dist/uk/index.html",
+      "dist/de/index.html",
+      "dist/playlists/index.html",
+      "dist/uk/playlists/index.html",
+      "dist/de/playlists/index.html",
+      "dist/about/index.html",
+      "dist/uk/about/index.html",
+      "dist/de/about/index.html",
+      "dist/downloads/index.html",
+      "dist/uk/downloads/index.html",
+      "dist/de/downloads/index.html",
+      "dist/help/index.html",
+      "dist/uk/help/index.html",
+      "dist/de/help/index.html",
+      "dist/privacy/index.html",
+      "dist/uk/privacy/index.html",
+      "dist/de/privacy/index.html",
     ];
     for (const f of files) {
       const html = readFile(f);

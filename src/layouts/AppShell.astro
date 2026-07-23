@@ -10,7 +10,12 @@ interface SidebarItem {
   labelDe: string;
 }
 
-const { title, description, lang = "en", currentPath } = Astro.props as {
+const {
+  title,
+  description,
+  lang = "en",
+  currentPath,
+} = Astro.props as {
   title: string;
   description?: string;
   lang?: string;
@@ -35,21 +40,46 @@ function sidebarLabel(item: SidebarItem): string {
   return item.labelEn;
 }
 
-const homeIcon = '<svg viewBox="0 0 24 24" class="menu-icon menu-icon--stations" aria-hidden="true"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" stroke="currentColor" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-const playlistsIcon = '<svg viewBox="0 0 24 24" class="menu-icon" aria-hidden="true"><path d="M9 5H5a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V6a1 1 0 00-1-1zM9 13H5a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1v-4a1 1 0 00-1-1zM19 5h-4a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V6a1 1 0 00-1-1z" stroke="currentColor" stroke-width="1.9" fill="none"/></svg>';
-const downloadsIcon = '<svg viewBox="0 0 24 24" class="menu-icon" aria-hidden="true"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="currentColor" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-const aboutIcon = '<svg viewBox="0 0 24 24" class="menu-icon" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.9" fill="none"/><path d="M12 16v-4M12 8h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>';
-const helpIcon = '<svg viewBox="0 0 24 24" class="menu-icon" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.9" fill="none"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>';
-const privacyIcon = '<svg viewBox="0 0 24 24" class="menu-icon" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke="currentColor" stroke-width="1.9" fill="none"/><path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>';
-const menuToggleIcon = '<svg viewBox="0 0 24 24" class="menu-icon" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>';
+const homeIcon =
+  '<svg viewBox="0 0 24 24" class="menu-icon menu-icon--stations" aria-hidden="true"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" stroke="currentColor" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const playlistsIcon =
+  '<svg viewBox="0 0 24 24" class="menu-icon" aria-hidden="true"><path d="M9 5H5a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V6a1 1 0 00-1-1zM9 13H5a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1v-4a1 1 0 00-1-1zM19 5h-4a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V6a1 1 0 00-1-1z" stroke="currentColor" stroke-width="1.9" fill="none"/></svg>';
+const downloadsIcon =
+  '<svg viewBox="0 0 24 24" class="menu-icon" aria-hidden="true"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="currentColor" stroke-width="1.9" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const aboutIcon =
+  '<svg viewBox="0 0 24 24" class="menu-icon" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.9" fill="none"/><path d="M12 16v-4M12 8h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>';
+const helpIcon =
+  '<svg viewBox="0 0 24 24" class="menu-icon" aria-hidden="true"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.9" fill="none"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>';
+const privacyIcon =
+  '<svg viewBox="0 0 24 24" class="menu-icon" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" stroke="currentColor" stroke-width="1.9" fill="none"/><path d="M7 11V7a5 5 0 0110 0v4" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>';
+const menuToggleIcon =
+  '<svg viewBox="0 0 24 24" class="menu-icon" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>';
 
 const sidebarItems: SidebarItem[] = [
   { href: "/", labelEn: "Home", labelUk: "Головна", labelDe: "Start", iconSvg: homeIcon },
-  { href: "/playlists", labelEn: "Playlists", labelUk: "Плейлисти", labelDe: "Playlists", iconSvg: playlistsIcon },
-  { href: "/downloads", labelEn: "Downloads", labelUk: "Завантаження", labelDe: "Downloads", iconSvg: downloadsIcon },
+  {
+    href: "/playlists",
+    labelEn: "Playlists",
+    labelUk: "Плейлисти",
+    labelDe: "Playlists",
+    iconSvg: playlistsIcon,
+  },
+  {
+    href: "/downloads",
+    labelEn: "Downloads",
+    labelUk: "Завантаження",
+    labelDe: "Downloads",
+    iconSvg: downloadsIcon,
+  },
   { href: "/about", labelEn: "About", labelUk: "Про нас", labelDe: "Über uns", iconSvg: aboutIcon },
   { href: "/help", labelEn: "Help", labelUk: "Допомога", labelDe: "Hilfe", iconSvg: helpIcon },
-  { href: "/privacy", labelEn: "Privacy", labelUk: "Конфіденційність", labelDe: "Datenschutz", iconSvg: privacyIcon },
+  {
+    href: "/privacy",
+    labelEn: "Privacy",
+    labelUk: "Конфіденційність",
+    labelDe: "Datenschutz",
+    iconSvg: privacyIcon,
+  },
 ];
 
 const enHref = currentPath.replace(/^\/?(uk|de)/, "") || "/";
@@ -74,60 +104,124 @@ const normPath = enHref === "" ? "/" : enHref;
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="canonical" href={"https://radiova-app.github.io" + Astro.url.pathname} />
     <ViewTransitions />
-    </head>
+  </head>
   <body>
-    <audio id="persistent-audio" transition:persist preload="none" crossorigin="anonymous" hidden></audio>
+    <audio id="persistent-audio" transition:persist preload="none" crossorigin="anonymous" hidden
+    ></audio>
     <div class="shell" id="shell">
       <header class="topbar" id="topbar">
         <div class="topbar-left">
-          <button class="menu-toggle" id="sidebar-toggle" type="button" aria-label={lang === "uk" ? "Перемкнути панель" : lang === "de" ? "Seitenleiste umschalten" : "Toggle sidebar"}>
-            <span set:html={menuToggleIcon}></span>
+          <button
+            class="menu-toggle"
+            id="sidebar-toggle"
+            type="button"
+            aria-label={lang === "uk"
+              ? "Перемкнути панель"
+              : lang === "de"
+                ? "Seitenleiste umschalten"
+                : "Toggle sidebar"}
+          >
+            <span set:html={menuToggleIcon} />
             <span class="label"></span>
           </button>
           <div class="header-player" id="header-player">
             <div class="header-player__logo" id="header-station-logo">
               <img id="header-station-image" class="header-player__image" src="" alt="" />
               <span class="header-player__toggle-icon" id="header-toggle-icon">
-                <svg viewBox="0 0 24 24" class="menu-icon" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/></svg>
+                <svg viewBox="0 0 24 24" class="menu-icon" aria-hidden="true"
+                  ><polygon points="5 3 19 12 5 21 5 3" fill="currentColor"></polygon></svg
+                >
               </span>
             </div>
             <div class="header-player__main">
-              <a id="header-station-link" class="header-player__title" href="#" target="_blank" rel="noreferrer noopener">
+              <span id="header-station-link" class="header-player__title">
                 <span id="header-station-title">No station selected</span>
-              </a>
+              </span>
+              <span id="header-player-status" class="player-status player-status--compact"
+                >No station selected</span
+              >
               <div id="header-stream-selector" class="stream-selector"></div>
             </div>
             <div class="header-player__controls">
               <button id="header-mute-btn" class="control icon-btn" type="button" aria-label="Mute">
                 <span class="icon-wrap">
-                  <svg viewBox="0 0 24 24" class="menu-icon" aria-hidden="true"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07" stroke="currentColor" stroke-width="1.9" fill="none" stroke-linecap="round"/></svg>
+                  <svg viewBox="0 0 24 24" class="menu-icon" aria-hidden="true"
+                    ><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"
+                    ></polygon><path
+                      d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"
+                      stroke="currentColor"
+                      stroke-width="1.9"
+                      fill="none"
+                      stroke-linecap="round"></path></svg
+                  >
                 </span>
               </button>
-              <input id="header-volume" type="range" min="0" max="1" step="0.01" aria-label="Volume" />
+              <input
+                id="header-volume"
+                type="range"
+                min="0"
+                max="1"
+                step="0.01"
+                aria-label="Volume"
+              />
             </div>
           </div>
         </div>
         <div class="topbar-actions">
           <span id="update-status" class="topbar__status"></span>
           <button id="pwa-install-btn" class="topbar__btn is-hidden" type="button">Install</button>
-          <nav class="lang-switcher" id="lang-switcher" aria-label={lang === "uk" ? "Вибір мови" : lang === "de" ? "Sprachauswahl" : "Language switcher"}>
-            <a href={normPath} id="lang-en" class="lang-switcher__link" aria-current={lang === "en" ? "true" : undefined}>EN</a>
+          <nav
+            class="lang-switcher"
+            id="lang-switcher"
+            aria-label={lang === "uk"
+              ? "Вибір мови"
+              : lang === "de"
+                ? "Sprachauswahl"
+                : "Language switcher"}
+          >
+            <a
+              href={normPath}
+              id="lang-en"
+              class="lang-switcher__link"
+              aria-current={lang === "en" ? "true" : undefined}>EN</a
+            >
             <span class="lang-switcher__sep" aria-hidden="true">|</span>
-            <a href={deHref} id="lang-de" class="lang-switcher__link" aria-current={lang === "de" ? "true" : undefined}>DE</a>
+            <a
+              href={deHref}
+              id="lang-de"
+              class="lang-switcher__link"
+              aria-current={lang === "de" ? "true" : undefined}>DE</a
+            >
             <span class="lang-switcher__sep" aria-hidden="true">|</span>
-            <a href={ukHref} id="lang-uk" class="lang-switcher__link" aria-current={lang === "uk" ? "true" : undefined}>UK</a>
+            <a
+              href={ukHref}
+              id="lang-uk"
+              class="lang-switcher__link"
+              aria-current={lang === "uk" ? "true" : undefined}>UK</a
+            >
           </nav>
         </div>
       </header>
       <div class="shell-body">
-        <aside class="sidebar" id="sidebar" role="navigation" aria-label={lang === "uk" ? "Бічна панель" : lang === "de" ? "Seitenleiste" : "Sidebar"}>
+        <aside
+          class="sidebar"
+          id="sidebar"
+          role="navigation"
+          aria-label={lang === "uk" ? "Бічна панель" : lang === "de" ? "Seitenleiste" : "Sidebar"}
+        >
           <nav class="menu-nav">
-            {sidebarItems.map((item) => (
-              <a href={localizeHref(item.href)} class={"menu-item" + (isActive(item.href) ? " is-active" : "")} data-sidebar-route={item.href}>
-                <span set:html={item.iconSvg}></span>
-                <span class="label">{sidebarLabel(item)}</span>
-              </a>
-            ))}
+            {
+              sidebarItems.map((item) => (
+                <a
+                  href={localizeHref(item.href)}
+                  class={"menu-item" + (isActive(item.href) ? " is-active" : "")}
+                  data-sidebar-route={item.href}
+                >
+                  <span set:html={item.iconSvg} />
+                  <span class="label">{sidebarLabel(item)}</span>
+                </a>
+              ))
+            }
           </nav>
         </aside>
         <div class="content" id="content">
