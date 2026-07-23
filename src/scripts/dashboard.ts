@@ -40,6 +40,7 @@ async function init(): Promise<void> {
   });
 
   setupListeners();
+  updateFavoritesTabVisibility();
   await loadStations(currentLocale);
 }
 
@@ -76,8 +77,10 @@ function setupListeners(): void {
       tab.classList.add('is-active');
       tab.setAttribute('aria-selected', 'true');
       currentLocale = locale;
-      settings.lastPlaylist = locale;
-      void saveSettings(settings);
+      if (locale !== 'favorites') {
+        settings.lastPlaylist = locale;
+        void saveSettings(settings);
+      }
       currentPage = 0;
       void loadStations(locale);
     });
@@ -140,7 +143,8 @@ async function loadStations(locale: string): Promise<void> {
   showLoading(true);
   hideError();
 
-  const { stations, fromCache } = await loadPlaylist(locale);
+  const playlistLocale = locale === 'favorites' ? 'all' : locale;
+  const { stations, fromCache } = await loadPlaylist(playlistLocale);
 
   if (stations.length === 0) {
     showLoading(false);
@@ -160,6 +164,9 @@ function renderStationList(): void {
   if (!list) return;
 
   let filtered = allStations;
+  if (currentLocale === 'favorites') {
+    filtered = filtered.filter((s) => favoritesSet.has(s.id));
+  }
   if (search) {
     const q = search.toLowerCase();
     filtered = filtered.filter((s) => s.name.toLowerCase().includes(q));
@@ -309,6 +316,13 @@ function playStation(st: Station): void {
   renderStationList();
 }
 
+function updateFavoritesTabVisibility(): void {
+  const favTab = document.querySelector<HTMLElement>('.station-tab[data-locale="favorites"]');
+  if (favTab) {
+    favTab.classList.toggle('is-hidden', favoritesSet.size === 0);
+  }
+}
+
 async function toggleFav(id: string): Promise<void> {
   if (favoritesSet.has(id)) {
     favoritesSet.delete(id);
@@ -317,7 +331,13 @@ async function toggleFav(id: string): Promise<void> {
     favoritesSet.add(id);
     await addFavorite(id);
   }
-  renderStationList();
+  updateFavoritesTabVisibility();
+  if (currentLocale === 'favorites' && favoritesSet.size === 0) {
+    const allTab = document.querySelector<HTMLElement>('.station-tab[data-locale="all"]');
+    if (allTab) allTab.click();
+  } else {
+    renderStationList();
+  }
 }
 
 function updateStatus(fromCache: boolean): void {

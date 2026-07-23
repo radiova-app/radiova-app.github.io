@@ -105,7 +105,7 @@ async function restorePlayerState(): Promise<void> {
   try {
     const { loadPlaylist } = await import('../services/playlist');
     const { stations } = await loadPlaylist(locale);
-    if (!stations || stations.length === 0) return;
+    if (stations.length === 0) return;
 
     const station = stations.find((s: Station) => s.id === stationId);
     if (!station) {
@@ -140,20 +140,19 @@ async function restorePlayerState(): Promise<void> {
     setStationImages(station);
     updateStreamSelector(station);
 
-    if (savedVol !== undefined) setVolume(savedVol);
-    if (savedMuted !== undefined) setMuted(savedMuted);
+    setVolume(savedVol);
+    setMuted(savedMuted);
 
     syncAllVolumeSliders();
     syncAllMuteButtons();
 
-    diagnostics.add('restorePlayerState: restored station="' + station.name + '" endpoint=' + (info.endpointUrl?.slice(0, 50) || '?') + '');
+    diagnostics.add('restorePlayerState: restored station="' + station.name + '" endpoint=' + (info.endpointUrl?.slice(0, 50) || '?'));
   } catch (err) {
     diagnostics.add('restorePlayerState error: ' + String(err));
   }
 }
 
 function persistPlayerState(): void {
-  if (!settings) return;
   if (currentStation) {
     settings.lastStationId = currentStation.id;
     settings.lastEndpointId = currentStation.endpoints[currentEndpointIndex]?.id || null;
@@ -464,6 +463,10 @@ function selectStation(station: Station, endpointIndex = 0): void {
   const audioEl = getAudioElement();
   if (audioEl) {
     diagnostics.add('audio readyState=' + String(audioEl.readyState) + ' networkState=' + String(audioEl.networkState) + ' src="' + (audioEl.src.slice(0, 60) || '') + '"');
+  }
+
+  if (equalizer) {
+    equalizer.prepare();
   }
 
   play(ep.url);

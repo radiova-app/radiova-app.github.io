@@ -27,6 +27,7 @@ export const PLAYLIST_LABELS = {
   de: { en: 'German', uk: 'Німецькі', de: 'Deutsch' },
   global: { en: 'Global', uk: 'Світові', de: 'Global' },
   all: { en: 'All', uk: 'Всі', de: 'Alle' },
+  favorites: { en: 'Favorites', uk: 'Улюблені', de: 'Favoriten' },
 } as const;
 
 export type PlaylistLocale = keyof typeof PLAYLIST_LABELS;

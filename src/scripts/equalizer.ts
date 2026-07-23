@@ -1,9 +1,13 @@
+export type EqMode = 'native-audio' | 'real-analyser' | 'analyser-unavailable' | 'cors-blocked';
+
 export interface EqualizerHandle {
   start: () => void;
   stop: () => void;
   setAudioElement: (el: HTMLAudioElement | null) => void;
   resize: () => void;
   destroy: () => void;
+  prepare: () => void;
+  getMode: () => EqMode;
 }
 
 export interface SideVisualizerHandle {
@@ -25,6 +29,26 @@ let ctxSide: CanvasRenderingContext2D | null = null;
 let currentAudio: HTMLAudioElement | null = null;
 let isActive = false;
 let reducedMotion = false;
+let eqMode: EqMode = 'native-audio';
+let graphConnected = false;
+
+function ensureAudioContext(): AudioContext {
+  if (!audioCtx) {
+    audioCtx = new AudioContext();
+  }
+  if (audioCtx.state === 'suspended') {
+    void audioCtx.resume();
+  }
+  return audioCtx;
+}
+
+function resumeAudioContext(): Promise<void> {
+  const ctx = ensureAudioContext();
+  if (ctx.state === 'suspended') {
+    return ctx.resume().then(() => undefined).catch(() => undefined);
+  }
+  return Promise.resolve();
+}
 
 function getCtx(canvas: HTMLCanvasElement | null, prev: CanvasRenderingContext2D | null): CanvasRenderingContext2D | null {
   if (prev) return prev;
@@ -150,26 +174,30 @@ let animFrameId: number | null = null;
 
 function setupAudioGraph(audioEl: HTMLAudioElement): boolean {
   try {
-    if (source && source.mediaElement === audioEl) return true;
-    cleanupGraph();
-    if (!audioCtx) audioCtx = new AudioContext();
-    if (audioCtx.state === 'suspended') void audioCtx.resume();
-    source = audioCtx.createMediaElementSource(audioEl);
-    analyser = audioCtx.createAnalyser();
+    if (graphConnected && source && source.mediaElement === audioEl) return true;
+    if (graphConnected) clearGraph();
+    const ctx = ensureAudioContext();
+    source = ctx.createMediaElementSource(audioEl);
+    analyser = ctx.createAnalyser();
     analyser.fftSize = 128;
     source.connect(analyser);
-    analyser.connect(audioCtx.destination);
+    analyser.connect(ctx.destination);
+    graphConnected = true;
+    eqMode = 'real-analyser';
     return true;
   } catch {
     source = null;
     analyser = null;
+    graphConnected = false;
+    eqMode = 'analyser-unavailable';
     return false;
   }
 }
 
-function cleanupGraph(): void {
+function clearGraph(): void {
   if (source) { try { source.disconnect(); } catch { /* ignore */ } source = null; }
   if (analyser) { try { analyser.disconnect(); } catch { /* ignore */ } analyser = null; }
+  graphConnected = false;
 }
 
 export function createSideVisualizer(canvasEl: HTMLCanvasElement): SideVisualizerHandle {
@@ -201,11 +229,21 @@ export function createEqualizer(left: HTMLCanvasElement, right: HTMLCanvasElemen
   reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const handle: EqualizerHandle = {
+    prepare(): void {
+      void resumeAudioContext();
+    },
+
+    getMode(): EqMode {
+      return eqMode;
+    },
+
     start(): void {
       if (isActive) return;
       isActive = true;
       if (reducedMotion) return;
-      if (currentAudio && !analyser) setupAudioGraph(currentAudio);
+      if (currentAudio && !graphConnected) {
+        setupAudioGraph(currentAudio);
+      }
       if (animFrameId) cancelAnimationFrame(animFrameId);
       animFrameId = requestAnimationFrame(tick);
     },
@@ -219,14 +257,14 @@ export function createEqualizer(left: HTMLCanvasElement, right: HTMLCanvasElemen
     setAudioElement(el: HTMLAudioElement | null): void {
       if (currentAudio === el) return;
       currentAudio = el;
-      if (el && isActive) setupAudioGraph(el);
+      if (el && isActive && !graphConnected) setupAudioGraph(el);
     },
 
     resize(): void { drawStatic(); },
 
     destroy(): void {
       handle.stop();
-      cleanupGraph();
+      clearGraph();
       if (audioCtx) { void audioCtx.close(); audioCtx = null; }
       canvasLeft = null;
       canvasRight = null;

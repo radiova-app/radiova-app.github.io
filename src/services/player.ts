@@ -41,6 +41,7 @@ function getAudio(): HTMLAudioElement {
   if (!audio) {
     audio = new Audio();
     audio.preload = 'none';
+    audio.crossOrigin = 'anonymous';
 
     audio.onplay = () => {
       currentState = 'playing';
@@ -61,7 +62,9 @@ function getAudio(): HTMLAudioElement {
       currentState = 'error';
       notifyState();
       notifyChange();
-      for (const fn of errorListeners) fn('Unable to play this stream');
+      const errCode = audio?.error?.code ?? 0;
+      const errMsg = audio?.error?.message || 'Unable to play this stream';
+      for (const fn of errorListeners) fn(errMsg + ' (code=' + String(errCode) + ')');
     };
     audio.onended = () => {
       currentState = 'idle';
@@ -165,6 +168,13 @@ export function getAudioElement(): HTMLAudioElement | null {
 
 export function play(url: string): void {
   const el = getAudio();
+
+  const isSecure = typeof window !== 'undefined' && window.location.protocol === 'https:';
+  if (isSecure && url.startsWith('http://')) {
+    const upgraded = 'https://' + url.slice(7);
+    url = upgraded;
+  }
+
   if (currentUrl !== url) {
     el.src = url;
     currentUrl = url;

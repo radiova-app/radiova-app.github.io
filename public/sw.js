@@ -48,6 +48,14 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
+  // Bypass caching for audio/media streams
+  const contentType = event.request.headers.get('Accept') || '';
+  const isAudio = contentType.includes('audio/')
+    || url.pathname.match(/\.(mp3|aac|ogg|wav|flac|opus|m3u8|m3u|pls|asx)$/i);
+  if (isAudio || url.port === '8443' || url.port === '8000' || url.port === '8080') {
+    return;
+  }
+
   // Cache-first for static app shell
   if (url.origin === self.location.origin && isAppShell(url.pathname)) {
     event.respondWith(

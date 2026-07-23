@@ -308,9 +308,9 @@ describe("logo fallback", () => {
 describe("player service", () => {
   const player = readFile("src/services/player.ts");
 
-  it("sets src on play without cors requirement", () => {
+  it("sets crossOrigin anonymous for Web Audio compatibility", () => {
     expect(player).toContain("el.src = url");
-    expect(player).not.toContain("crossOrigin");
+    expect(player).toContain("crossOrigin = 'anonymous'");
   });
 
   it("exports getAudioElement", () => {
