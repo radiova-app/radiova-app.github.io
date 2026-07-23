@@ -1,4 +1,4 @@
-import { loadLocale, applyI18n } from "../services/i18n";
+import { loadLocale, applyI18n, t } from "../services/i18n";
 import {
   getAudioElement,
   getCurrentUrl,
@@ -21,6 +21,7 @@ import {
 } from "../services/player";
 import { addRecent, getSettings, saveSettings } from "../services/db";
 import { queueStreamReport } from "../services/reporter";
+import { openPrivacySettings, whenConsentResolved } from "../services/consent";
 import {
   initPWA,
   getPWAState,
@@ -243,7 +244,14 @@ let domAbortController: AbortController | null = null;
 function bindHeaderPlayer(signal: AbortSignal): void {
   const headerLogo = $("header-station-logo");
   if (headerLogo) {
-    headerLogo.addEventListener("click", togglePlayback, { signal });
+    headerLogo.addEventListener(
+      "click",
+      () => {
+        if (!currentStation) return;
+        togglePlayback();
+      },
+      { signal },
+    );
   }
 
   const headerVol = $("header-volume") as HTMLInputElement | null;
@@ -329,6 +337,9 @@ function bindDashboardPlayer(signal: AbortSignal): void {
       { signal },
     );
   }
+
+  const privacyBtn = $("privacy-settings-btn");
+  if (privacyBtn) privacyBtn.addEventListener("click", openPrivacySettings, { signal });
 
   document.addEventListener(
     "click",
@@ -490,17 +501,34 @@ function safeArtworkUrl(url: string | undefined, context: string): string {
 }
 
 function updateHeaderPlayer(state: SharedPlayerState): void {
+  const hasStation = Boolean(state.station.stationId);
+  const emptyTitle = t("player.noStation");
+  const emptySubtitle = t("player.chooseStation");
+  const stationTitle = $("header-station-title");
+  if (stationTitle && !hasStation) {
+    stationTitle.textContent = emptyTitle;
+    stationTitle.setAttribute("title", emptyTitle);
+  }
+
   const toggleIcon = $("header-toggle-icon");
   if (toggleIcon) {
     toggleIcon.innerHTML = iconForStatus(state.status);
     toggleIcon.classList.toggle("is-loading", isLoadingStatus(state.status));
     toggleIcon.classList.toggle("has-error", state.status === "error");
   }
+  const logo = $("header-station-logo");
+  if (logo) {
+    logo.classList.toggle("is-disabled", !hasStation);
+    logo.setAttribute("aria-disabled", hasStation ? "false" : "true");
+    logo.setAttribute("aria-label", hasStation ? ariaLabelForStatus(state.status) : emptySubtitle);
+  }
   const status = $("header-player-status");
   if (status) {
-    status.textContent = state.statusLabel;
-    status.setAttribute("title", state.statusLabel);
+    const statusText = hasStation ? state.statusLabel : emptySubtitle;
+    status.textContent = statusText;
+    status.setAttribute("title", statusText);
   }
+  if (!hasStation) setPlayerImage("header-station-image", PLACEHOLDER_IMG, emptyTitle, "empty header");
 }
 
 function updateDashboardPlayer(state: SharedPlayerState): void {
@@ -524,13 +552,21 @@ function updateDashboardPlayer(state: SharedPlayerState): void {
   const toggleAttr = $("dashboard-station-square");
   if (toggleAttr) {
     toggleAttr.setAttribute("aria-label", ariaLabelForStatus(state.status));
+    if (toggleAttr instanceof HTMLButtonElement) toggleAttr.disabled = !state.station.stationId;
+  }
+
+  for (const id of ["dashboard-play-toggle", "dashboard-prev", "dashboard-next"]) {
+    const button = $(id) as HTMLButtonElement | null;
+    if (button) button.disabled = !state.station.stationId;
   }
 
   const status = $("dashboard-player-status");
   if (status) {
-    status.textContent = state.statusLabel;
-    status.setAttribute("title", state.statusLabel);
+    const statusText = state.station.stationId ? state.statusLabel : t("player.chooseStation");
+    status.textContent = statusText;
+    status.setAttribute("title", statusText);
   }
+  if (!state.station.stationId) setPlayerImage("dashboard-station-image", PLACEHOLDER_IMG, t("player.noStation"), "empty dashboard");
 }
 
 function updateEqualizer(state: string): void {
@@ -547,30 +583,24 @@ function updateEqualizer(state: string): void {
   }
 }
 
+function setPlayerImage(imgId: string, src: string, alt: string, context: string): void {
+  const img = $(imgId) as HTMLImageElement | null;
+  if (!img) return;
+  img.onerror = () => {
+    diagnostics.add("artwork " + context + ": fallback for " + src.slice(0, 60));
+    img.onerror = null;
+    img.src = PLACEHOLDER_IMG;
+  };
+  img.src = src || PLACEHOLDER_IMG;
+  img.alt = alt;
+  img.style.display = "";
+}
+
 function setStationImages(station: Station): void {
   const logoUrl = safeArtworkUrl(station.logo, "player");
 
   function setImg(imgId: string, alt: string): void {
-    const img = $(imgId) as HTMLImageElement | null;
-    if (!img) return;
-    if (logoUrl) {
-      img.src = logoUrl;
-      img.alt = alt;
-      img.onerror = () => {
-        diagnostics.add("artwork player: network error for " + logoUrl.slice(0, 60));
-        img.src = PLACEHOLDER_IMG;
-        img.onerror = null;
-      };
-      img.onload = () => {
-        img.style.display = "";
-      };
-      img.style.display = "";
-    } else {
-      img.src = PLACEHOLDER_IMG;
-      img.alt = alt;
-      img.onerror = null;
-      img.style.display = "";
-    }
+    setPlayerImage(imgId, logoUrl || PLACEHOLDER_IMG, alt, "player");
   }
 
   setImg("header-station-image", station.name);
@@ -918,5 +948,5 @@ function onPageNavigation(): void {
 document.addEventListener("astro:page-load", onPageNavigation);
 
 document.addEventListener("DOMContentLoaded", () => {
-  void init();
+  void whenConsentResolved().then(() => init());
 });

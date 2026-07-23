@@ -131,6 +131,10 @@ async function main() {
   await page.evaluate(() => {
     localStorage.clear();
     sessionStorage.clear();
+    localStorage.setItem(
+      "radiova-consent",
+      JSON.stringify({ version: 1, status: "accepted", decidedAt: new Date().toISOString() }),
+    );
     try {
       indexedDB.deleteDatabase("radiova");
     } catch {}

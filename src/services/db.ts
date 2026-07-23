@@ -1,8 +1,17 @@
 import type { AppSettings, CustomPlaylist, PlaylistData } from '../types/storage';
 import type { Station } from '../types/station';
 import { DEFAULT_SETTINGS, LOCAL_DB_NAME, LOCAL_DB_VERSION, STORE_SETTINGS, STORE_PLAYLISTS, STORE_FAVORITES, STORE_CUSTOM, STORE_RECENTS } from '../types/storage';
+import { hasConsent } from './consent';
+
+let memorySettings: AppSettings = { ...DEFAULT_SETTINGS };
+let memoryFavorites = new Set<string>();
+let memoryCustomPlaylists: CustomPlaylist[] = [];
+let memoryRecents: string[] = [];
 
 function openDB(): Promise<IDBDatabase> {
+  if (!hasConsent('preferences')) {
+    return Promise.reject(new Error('Preferences storage is disabled by consent.'));
+  }
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(LOCAL_DB_NAME, LOCAL_DB_VERSION);
     req.onupgradeneeded = () => {
@@ -30,6 +39,7 @@ function openDB(): Promise<IDBDatabase> {
 
 // Settings
 export async function getSettings(): Promise<AppSettings> {
+  if (!hasConsent('preferences')) return { ...memorySettings };
   try {
     const db = await openDB();
     return await new Promise<AppSettings>((resolve) => {
@@ -46,6 +56,10 @@ export async function getSettings(): Promise<AppSettings> {
 }
 
 export async function saveSettings(settings: AppSettings): Promise<void> {
+  if (!hasConsent('preferences')) {
+    memorySettings = { ...settings };
+    return;
+  }
   try {
     const db = await openDB();
     const tx = db.transaction(STORE_SETTINGS, 'readwrite');
@@ -57,6 +71,7 @@ export async function saveSettings(settings: AppSettings): Promise<void> {
 
 // Playlists
 export async function getCachedPlaylist(locale: string): Promise<PlaylistData | null> {
+  if (!hasConsent('offline')) return null;
   try {
     const db = await openDB();
     return await new Promise<PlaylistData | null>((resolve) => {
@@ -73,6 +88,7 @@ export async function getCachedPlaylist(locale: string): Promise<PlaylistData | 
 }
 
 export async function cachePlaylist(locale: string, data: PlaylistData): Promise<void> {
+  if (!hasConsent('offline')) return;
   try {
     const db = await openDB();
     const tx = db.transaction(STORE_PLAYLISTS, 'readwrite');
@@ -84,6 +100,7 @@ export async function cachePlaylist(locale: string, data: PlaylistData): Promise
 
 // Favorites
 export async function getFavorites(): Promise<Set<string>> {
+  if (!hasConsent('preferences')) return new Set(memoryFavorites);
   try {
     const db = await openDB();
     return await new Promise<Set<string>>((resolve) => {
@@ -98,6 +115,10 @@ export async function getFavorites(): Promise<Set<string>> {
 }
 
 export async function addFavorite(id: string): Promise<void> {
+  if (!hasConsent('preferences')) {
+    memoryFavorites.add(id);
+    return;
+  }
   try {
     const db = await openDB();
     const tx = db.transaction(STORE_FAVORITES, 'readwrite');
@@ -108,6 +129,10 @@ export async function addFavorite(id: string): Promise<void> {
 }
 
 export async function removeFavorite(id: string): Promise<void> {
+  if (!hasConsent('preferences')) {
+    memoryFavorites.delete(id);
+    return;
+  }
   try {
     const db = await openDB();
     const tx = db.transaction(STORE_FAVORITES, 'readwrite');
@@ -119,6 +144,7 @@ export async function removeFavorite(id: string): Promise<void> {
 
 // Recents
 export async function getRecents(): Promise<string[]> {
+  if (!hasConsent('preferences')) return [...memoryRecents];
   try {
     const db = await openDB();
     return await new Promise<string[]>((resolve) => {
@@ -137,6 +163,10 @@ export async function getRecents(): Promise<string[]> {
 }
 
 export async function addRecent(stationId: string): Promise<void> {
+  if (!hasConsent('preferences')) {
+    memoryRecents = [stationId, ...memoryRecents.filter((id) => id !== stationId)].slice(0, 20);
+    return;
+  }
   try {
     const db = await openDB();
     const tx = db.transaction(STORE_RECENTS, 'readwrite');
@@ -148,6 +178,7 @@ export async function addRecent(stationId: string): Promise<void> {
 
 // Custom playlists
 export async function getCustomPlaylistNames(): Promise<string[]> {
+  if (!hasConsent('preferences')) return memoryCustomPlaylists.map((playlist) => playlist.name);
   try {
     const db = await openDB();
     return await new Promise<string[]>((resolve) => {
@@ -162,6 +193,9 @@ export async function getCustomPlaylistNames(): Promise<string[]> {
 }
 
 export async function getCustomPlaylists(): Promise<CustomPlaylist[]> {
+  if (!hasConsent('preferences')) {
+    return [...memoryCustomPlaylists].sort((a, b) => b.updatedAt - a.updatedAt);
+  }
   try {
     const db = await openDB();
     return await new Promise<CustomPlaylist[]>((resolve) => {
@@ -179,6 +213,9 @@ export async function getCustomPlaylists(): Promise<CustomPlaylist[]> {
 }
 
 export async function getCustomPlaylist(name: string): Promise<CustomPlaylist | null> {
+  if (!hasConsent('preferences')) {
+    return memoryCustomPlaylists.find((playlist) => playlist.name === name) ?? null;
+  }
   try {
     const db = await openDB();
     return await new Promise<CustomPlaylist | null>((resolve) => {
@@ -196,6 +233,18 @@ export async function getCustomPlaylist(name: string): Promise<CustomPlaylist | 
 }
 
 export async function saveCustomPlaylist(name: string, stations: Station[]): Promise<void> {
+  if (!hasConsent('preferences')) {
+    const existing = memoryCustomPlaylists.find((playlist) => playlist.name === name);
+    const now = Date.now();
+    const next: CustomPlaylist = {
+      name,
+      stations,
+      createdAt: existing?.createdAt ?? now,
+      updatedAt: now,
+    };
+    memoryCustomPlaylists = [next, ...memoryCustomPlaylists.filter((playlist) => playlist.name !== name)];
+    return;
+  }
   try {
     const db = await openDB();
     const tx = db.transaction(STORE_CUSTOM, 'readwrite');
@@ -214,6 +263,13 @@ export async function saveCustomPlaylist(name: string, stations: Station[]): Pro
 
 export async function renameCustomPlaylist(currentName: string, nextName: string): Promise<boolean> {
   if (currentName === nextName) return true;
+  if (!hasConsent('preferences')) {
+    const playlist = memoryCustomPlaylists.find((item) => item.name === currentName);
+    if (!playlist || memoryCustomPlaylists.some((item) => item.name === nextName)) return false;
+    playlist.name = nextName;
+    playlist.updatedAt = Date.now();
+    return true;
+  }
   const playlist = await getCustomPlaylist(currentName);
   if (!playlist) return false;
   const existing = await getCustomPlaylist(nextName);
@@ -231,6 +287,10 @@ export async function renameCustomPlaylist(currentName: string, nextName: string
 }
 
 export async function deleteCustomPlaylist(name: string): Promise<void> {
+  if (!hasConsent('preferences')) {
+    memoryCustomPlaylists = memoryCustomPlaylists.filter((playlist) => playlist.name !== name);
+    return;
+  }
   try {
     const db = await openDB();
     const tx = db.transaction(STORE_CUSTOM, 'readwrite');
@@ -242,6 +302,11 @@ export async function deleteCustomPlaylist(name: string): Promise<void> {
 
 // Reset
 export async function resetAllData(): Promise<void> {
+  memorySettings = { ...DEFAULT_SETTINGS };
+  memoryFavorites = new Set<string>();
+  memoryCustomPlaylists = [];
+  memoryRecents = [];
+  if (!hasConsent('preferences')) return;
   try {
     const db = await openDB();
     const tx = db.transaction([STORE_SETTINGS, STORE_PLAYLISTS, STORE_FAVORITES, STORE_CUSTOM, STORE_RECENTS], 'readwrite');

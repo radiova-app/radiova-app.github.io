@@ -1,3 +1,5 @@
+import { hasConsent } from './consent';
+
 export type Locale = 'en' | 'uk' | 'de';
 
 const STORAGE_KEY = 'radiova-lang';
@@ -22,6 +24,7 @@ const DICT: Record<Locale, Record<string, string>> = {
     'player.unmute': 'Unmute',
     'player.volume': 'Volume',
     'player.noStation': 'No station selected',
+    'player.chooseStation': 'Choose a station from the list',
     'player.selectStream': 'Select stream',
     'player.fallback': 'Falling back to alternative stream',
     'player.error': 'Cannot play this stream',
@@ -107,7 +110,7 @@ const DICT: Record<Locale, Record<string, string>> = {
     'help.install': 'Install as app',
     'help.install.text': 'You can install Radiova as a standalone app using the install button in the top bar.',
     'privacy.title': 'Privacy Policy',
-    'privacy.local': 'Radiova stores all user data locally in your browser using IndexedDB.',
+    'privacy.local': 'Radiova stores app data locally in your browser using localStorage, IndexedDB, and Cache Storage after consent.',
     'privacy.remote': 'The app fetches public playlist metadata from the radiova-stations GitHub repository. No personal data is transmitted.',
     'privacy.analytics': 'Radiova does not use analytics, tracking, or third-party data collection.',
     'privacy.resetTitle': 'Reset local data',
@@ -115,12 +118,14 @@ const DICT: Record<Locale, Record<string, string>> = {
     'privacy.resetAction': 'Reset local data',
     'privacy.resetConfirm': 'Delete all local Radiova data from this browser? This cannot be undone.',
     'privacy.resetDone': 'Local data was reset.',
-    'privacy.intro': 'Radiova respects your privacy. All data is stored locally in your browser using IndexedDB. No personal information is collected, transmitted, or shared.',
+    'privacy.intro': 'Radiova respects your privacy. The public site does not use cookies, advertising cookies, third-party analytics, or tracking. After consent, app data is stored locally in your browser using localStorage, IndexedDB, and Cache Storage.',
     'privacy.data': 'What data we store',
     'privacy.data.favorites': 'Your favorite stations',
     'privacy.data.history': 'Listen history',
     'privacy.data.settings': 'App settings (language, theme, volume)',
     'privacy.data.custom': 'Custom playlists',
+    'privacy.data.offline': 'Offline app shell and playlist cache',
+    'privacy.settings.action': 'Privacy settings',
     'privacy.thirdParty': 'Third-party services',
     'privacy.thirdParty.text': 'Radiova fetches station data from the open radiova-stations GitHub repository. Stream audio is played directly from source URLs. No third-party analytics or tracking is used.',
     'privacy.reset': 'Reset local data',
@@ -174,6 +179,7 @@ const DICT: Record<Locale, Record<string, string>> = {
     'player.unmute': 'Увімкнути звук',
     'player.volume': 'Гучність',
     'player.noStation': 'Станцію не вибрано',
+    'player.chooseStation': 'Виберіть станцію зі списку',
     'player.selectStream': 'Вибрати потік',
     'player.fallback': 'Перемикання на альтернативний потік',
     'player.error': 'Не вдається відтворити цей потік',
@@ -259,7 +265,7 @@ const DICT: Record<Locale, Record<string, string>> = {
     'help.install': 'Встановлення як додаток',
     'help.install.text': 'Ви можете встановити Radiova як окремий додаток за допомогою кнопки встановлення у верхній панелі.',
     'privacy.title': 'Політика конфіденційності',
-    'privacy.local': 'Radiova зберігає всі дані локально у вашому браузері.',
+    'privacy.local': 'Після згоди Radiova зберігає дані додатку локально у вашому браузері за допомогою localStorage, IndexedDB і Cache Storage.',
     'privacy.remote': 'Додаток завантажує публічні метадані плейлистів з GitHub.',
     'privacy.analytics': 'Radiova не використовує аналітику або відстеження.',
     'privacy.resetTitle': 'Скинути локальні дані',
@@ -267,12 +273,14 @@ const DICT: Record<Locale, Record<string, string>> = {
     'privacy.resetAction': 'Скинути локальні дані',
     'privacy.resetConfirm': 'Видалити всі локальні дані Radiova з цього браузера? Дію неможливо скасувати.',
     'privacy.resetDone': 'Локальні дані скинуто.',
-    'privacy.intro': 'Radiova поважає вашу конфіденційність. Всі дані зберігаються локально у вашому браузері за допомогою IndexedDB. Жодна особиста інформація не збирається, не передається та не поширюється.',
+    'privacy.intro': 'Radiova поважає вашу конфіденційність. Публічний сайт не використовує cookie, рекламні cookie, сторонню аналітику або відстеження. Після згоди дані додатку зберігаються локально у вашому браузері за допомогою localStorage, IndexedDB і Cache Storage.',
     'privacy.data': 'Які дані ми зберігаємо',
     'privacy.data.favorites': 'Ваші улюблені станції',
     'privacy.data.history': 'Історія прослуховування',
     'privacy.data.settings': 'Налаштування додатку (мова, тема, гучність)',
     'privacy.data.custom': 'Користувацькі плейлисти',
+    'privacy.data.offline': 'Офлайн-оболонка додатку та кеш плейлистів',
+    'privacy.settings.action': 'Налаштування конфіденційності',
     'privacy.thirdParty': 'Сторонні сервіси',
     'privacy.thirdParty.text': 'Radiova отримує дані станцій з відкритого репозиторію radiova-stations на GitHub. Аудіопотоки відтворюються безпосередньо з URL-джерел. Сторонні аналітичні або відстежувальні сервіси не використовуються.',
     'privacy.reset': 'Скидання локальних даних',
@@ -326,6 +334,7 @@ const DICT: Record<Locale, Record<string, string>> = {
     'player.unmute': 'Laut',
     'player.volume': 'Lautstärke',
     'player.noStation': 'Kein Sender ausgewählt',
+    'player.chooseStation': 'Wählen Sie einen Sender aus der Liste',
     'player.selectStream': 'Stream wählen',
     'player.fallback': 'Wechsel zu alternativem Stream',
     'player.error': 'Dieser Stream kann nicht abgespielt werden',
@@ -411,7 +420,7 @@ const DICT: Record<Locale, Record<string, string>> = {
     'help.install': 'Als App installieren',
     'help.install.text': 'Sie können Radiova mit der Installationsschaltfläche in der oberen Leiste als eigenständige App installieren.',
     'privacy.title': 'Datenschutz',
-    'privacy.local': 'Radiova speichert alle Benutzerdaten lokal im Browser.',
+    'privacy.local': 'Nach Einwilligung speichert Radiova App-Daten lokal im Browser mit localStorage, IndexedDB und Cache Storage.',
     'privacy.remote': 'Die App lädt öffentliche Playlist-Metadaten aus GitHub.',
     'privacy.analytics': 'Radiova verwendet keine Analyse- oder Tracking-Dienste.',
     'privacy.resetTitle': 'Lokale Daten zurücksetzen',
@@ -419,12 +428,14 @@ const DICT: Record<Locale, Record<string, string>> = {
     'privacy.resetAction': 'Lokale Daten zurücksetzen',
     'privacy.resetConfirm': 'Alle lokalen Radiova-Daten aus diesem Browser löschen? Dies kann nicht rückgängig gemacht werden.',
     'privacy.resetDone': 'Lokale Daten wurden zurückgesetzt.',
-    'privacy.intro': 'Radiova respektiert Ihre Privatsphäre. Alle Daten werden lokal in Ihrem Browser mit IndexedDB gespeichert. Es werden keine persönlichen Informationen gesammelt, übertragen oder weitergegeben.',
+    'privacy.intro': 'Radiova respektiert Ihre Privatsphäre. Die öffentliche Website verwendet keine Cookies, Werbe-Cookies, Drittanbieter-Analysen oder Tracking. Nach Einwilligung werden App-Daten lokal im Browser mit localStorage, IndexedDB und Cache Storage gespeichert.',
     'privacy.data': 'Welche Daten wir speichern',
     'privacy.data.favorites': 'Ihre Lieblingssender',
     'privacy.data.history': 'Hörverlauf',
     'privacy.data.settings': 'App-Einstellungen (Sprache, Design, Lautstärke)',
     'privacy.data.custom': 'Benutzerdefinierte Playlists',
+    'privacy.data.offline': 'Offline-App-Shell und Playlist-Cache',
+    'privacy.settings.action': 'Datenschutzeinstellungen',
     'privacy.thirdParty': 'Drittanbieter-Dienste',
     'privacy.thirdParty.text': 'Radiova ruft Stationsdaten aus dem offenen radiova-stations GitHub-Repository ab. Audio-Streams werden direkt von den Quell-URLs abgespielt. Es werden keine Analysedienste oder Tracking von Drittanbietern verwendet.',
     'privacy.reset': 'Lokale Daten zurücksetzen',
@@ -469,6 +480,7 @@ export function getLocale(): Locale {
 
 export function setLocale(locale: Locale): void {
   currentLocale = locale;
+  if (!hasConsent('preferences')) return;
   try {
     localStorage.setItem(STORAGE_KEY, locale);
   } catch {
@@ -481,9 +493,10 @@ export function loadLocale(): Locale {
     const htmlLang = document.documentElement.lang;
     if (htmlLang === 'uk' || htmlLang === 'de' || htmlLang === 'en') {
       currentLocale = htmlLang;
-      localStorage.setItem(STORAGE_KEY, htmlLang);
+      if (hasConsent('preferences')) localStorage.setItem(STORAGE_KEY, htmlLang);
       return currentLocale;
     }
+    if (!hasConsent('preferences')) return currentLocale;
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored === 'uk' || stored === 'de' || stored === 'en') {
       currentLocale = stored;

@@ -1,3 +1,5 @@
+import { hasConsent } from './consent';
+
 export interface StreamReport {
   stationId: string | null;
   stationName: string | null;
@@ -13,6 +15,7 @@ const MAX_QUEUE_SIZE = 50;
 
 export class LocalQueueTransport {
   enqueue(report: StreamReport): void {
+    if (!hasConsent('diagnostics')) return;
     try {
       const queue = this.list();
       queue.push(report);
@@ -23,6 +26,7 @@ export class LocalQueueTransport {
   }
 
   list(): StreamReport[] {
+    if (!hasConsent('diagnostics')) return [];
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return [];
@@ -34,6 +38,7 @@ export class LocalQueueTransport {
   }
 
   clear(): void {
+    if (!hasConsent('diagnostics')) return;
     try {
       localStorage.removeItem(STORAGE_KEY);
     } catch {
@@ -52,6 +57,7 @@ const localQueue = new LocalQueueTransport();
 const remote = new DisabledRemoteTransport();
 
 export function queueStreamReport(report: StreamReport): void {
+  if (!hasConsent('diagnostics')) return;
   localQueue.enqueue(report);
   void remote.send(report);
 }

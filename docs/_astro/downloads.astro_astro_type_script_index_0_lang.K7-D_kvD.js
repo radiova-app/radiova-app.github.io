@@ -1,0 +1,1 @@
+import{o as n,p as a,a as o,g as s}from"./pwa.DLFElEAS.js";function e(t){t.classList.toggle("is-hidden",o()||s()!=="installable")}document.addEventListener("DOMContentLoaded",()=>{const t=document.getElementById("pwa-install-page");t&&(e(t),n(()=>{e(t)}),t.addEventListener("click",()=>{a()}))});

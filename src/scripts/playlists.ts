@@ -2,6 +2,7 @@ import { getCustomPlaylist, getCustomPlaylists, deleteCustomPlaylist, renameCust
 import { buildM3U, parseM3U, validateM3U } from '../services/m3u';
 import { fetchManifest, getPlaylistEntry } from '../services/playlist';
 import { loadLocale, t } from '../services/i18n';
+import { whenConsentResolved } from '../services/consent';
 import type { CustomPlaylist } from '../types/storage';
 
 function $(id: string): HTMLElement | null {
@@ -184,4 +185,4 @@ async function init(): Promise<void> {
   await Promise.all([renderCustomPlaylists(), renderManifestInfo()]);
 }
 
-document.addEventListener('DOMContentLoaded', () => { void init(); });
+document.addEventListener('DOMContentLoaded', () => { void whenConsentResolved().then(() => init()); });

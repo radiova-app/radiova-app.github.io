@@ -86,6 +86,14 @@ const enHref = currentPath.replace(/^\/?(uk|de)/, "") || "/";
 const ukHref = "/uk" + (enHref === "/" ? "" : enHref);
 const deHref = "/de" + (enHref === "/" ? "" : enHref);
 const normPath = enHref === "" ? "/" : enHref;
+const emptyStationTitle =
+  lang === "uk" ? "Станцію не вибрано" : lang === "de" ? "Kein Sender ausgewählt" : "No station selected";
+const emptyStationSubtitle =
+  lang === "uk"
+    ? "Виберіть станцію зі списку"
+    : lang === "de"
+      ? "Wählen Sie einen Sender aus der Liste"
+      : "Choose a station from the list";
 ---
 
 <!doctype html>
@@ -103,6 +111,20 @@ const normPath = enHref === "" ? "/" : enHref;
     <link rel="apple-touch-icon" href="/assets/icons/icon-192.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="canonical" href={"https://radiova-app.github.io" + Astro.url.pathname} />
+    <script is:inline>
+      (() => {
+        try {
+          const raw = localStorage.getItem("radiova-consent");
+          const parsed = raw ? JSON.parse(raw) : null;
+          const accepted = parsed && parsed.version === 1 && parsed.status === "accepted";
+          document.documentElement.dataset.consent = accepted ? "accepted" : "unknown";
+          if (!accepted) document.documentElement.classList.add("consent-preload-blocked");
+        } catch {
+          document.documentElement.dataset.consent = "unknown";
+          document.documentElement.classList.add("consent-preload-blocked");
+        }
+      })();
+    </script>
     <ViewTransitions />
   </head>
   <body>
@@ -125,8 +147,19 @@ const normPath = enHref === "" ? "/" : enHref;
             <span class="label"></span>
           </button>
           <div class="header-player" id="header-player">
-            <div class="header-player__logo" id="header-station-logo">
-              <img id="header-station-image" class="header-player__image" src="" alt="" />
+            <div
+              class="header-player__logo is-disabled"
+              id="header-station-logo"
+              role="button"
+              aria-disabled="true"
+              aria-label={emptyStationSubtitle}
+            >
+              <img
+                id="header-station-image"
+                class="header-player__image"
+                src="/assets/images/station-placeholder.svg"
+                alt=""
+              />
               <span class="header-player__toggle-icon" id="header-toggle-icon">
                 <svg viewBox="0 0 24 24" class="menu-icon" aria-hidden="true"
                   ><polygon points="5 3 19 12 5 21 5 3" fill="currentColor"></polygon></svg
@@ -135,10 +168,10 @@ const normPath = enHref === "" ? "/" : enHref;
             </div>
             <div class="header-player__main">
               <span id="header-station-link" class="header-player__title">
-                <span id="header-station-title">No station selected</span>
+                <span id="header-station-title">{emptyStationTitle}</span>
               </span>
               <span id="header-player-status" class="player-status player-status--compact"
-                >No station selected</span
+                >{emptyStationSubtitle}</span
               >
               <div id="header-stream-selector" class="stream-selector"></div>
             </div>
@@ -169,6 +202,9 @@ const normPath = enHref === "" ? "/" : enHref;
         </div>
         <div class="topbar-actions">
           <span id="update-status" class="topbar__status"></span>
+          <button id="privacy-settings-btn" class="topbar__btn" type="button">
+            {lang === "uk" ? "Приватність" : lang === "de" ? "Datenschutz" : "Privacy"}
+          </button>
           <button id="pwa-install-btn" class="topbar__btn is-hidden" type="button">Install</button>
           <nav
             class="lang-switcher"
@@ -229,6 +265,10 @@ const normPath = enHref === "" ? "/" : enHref;
         </div>
       </div>
     </div>
+    <script>
+      import { initConsentGate } from "../services/consent";
+      initConsentGate();
+    </script>
     <script>
       import "../scripts/sw-register.ts";
     </script>

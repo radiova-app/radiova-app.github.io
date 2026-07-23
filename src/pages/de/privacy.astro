@@ -16,6 +16,7 @@ const currentPath = Astro.url.pathname;
       <li data-i18n="privacy.data.history">Hörverlauf</li>
       <li data-i18n="privacy.data.settings">App-Einstellungen (Sprache, Design, Lautstärke)</li>
       <li data-i18n="privacy.data.custom">Benutzerdefinierte Playlists</li>
+      <li data-i18n="privacy.data.offline">Offline-App-Shell und Playlist-Cache</li>
     </ul>
 
     <h2 class="content-page__subtitle" data-i18n="privacy.thirdParty">Drittanbieter-Dienste</h2>
@@ -23,6 +24,7 @@ const currentPath = Astro.url.pathname;
 
     <h2 class="content-page__subtitle" data-i18n="privacy.reset">Lokale Daten zurücksetzen</h2>
     <p class="content-page__text" data-i18n="privacy.reset.text">Sie können alle lokal gespeicherten Daten jederzeit mit der folgenden Schaltfläche löschen.</p>
+    <button class="action-btn privacy-settings-action" type="button" data-i18n="privacy.settings.action">Datenschutzeinstellungen</button>
     <button id="reset-data-btn" class="action-btn" type="button" data-i18n="privacy.reset.action">Alle Daten zurücksetzen</button>
     <p id="reset-status" class="status" role="status"></p>
   </section>

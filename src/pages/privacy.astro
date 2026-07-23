@@ -16,6 +16,7 @@ const currentPath = Astro.url.pathname;
       <li data-i18n="privacy.data.history">Listen history</li>
       <li data-i18n="privacy.data.settings">App settings (language, theme, volume)</li>
       <li data-i18n="privacy.data.custom">Custom playlists</li>
+      <li data-i18n="privacy.data.offline">Offline app shell and playlist cache</li>
     </ul>
 
     <h2 class="content-page__subtitle" data-i18n="privacy.thirdParty">Third-party services</h2>
@@ -23,6 +24,7 @@ const currentPath = Astro.url.pathname;
 
     <h2 class="content-page__subtitle" data-i18n="privacy.reset">Reset local data</h2>
     <p class="content-page__text" data-i18n="privacy.reset.text">You can clear all locally stored data at any time using the button below.</p>
+    <button class="action-btn privacy-settings-action" type="button" data-i18n="privacy.settings.action">Privacy settings</button>
     <button id="reset-data-btn" class="action-btn" type="button" data-i18n="privacy.reset.action">Reset all data</button>
     <p id="reset-status" class="status" role="status"></p>
   </section>

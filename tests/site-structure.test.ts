@@ -353,7 +353,7 @@ describe("player service", () => {
 
   it("has localized playback status labels", () => {
     for (const label of [
-      "No station selected",
+      "Choose a station from the list",
       "Loading...",
       "Playing",
       "Paused",
@@ -364,7 +364,7 @@ describe("player service", () => {
       expect(player).toContain(label);
     }
     for (const label of [
-      "Не вибрано станцію",
+      "Виберіть станцію зі списку",
       "Завантаження...",
       "Грає",
       "Призупинено",
@@ -375,7 +375,7 @@ describe("player service", () => {
       expect(player).toContain(label);
     }
     for (const label of [
-      "Kein Sender ausgewählt",
+      "Wählen Sie einen Sender aus der Liste",
       "Wird geladen...",
       "Wiedergabe",
       "Pausiert",
@@ -738,7 +738,8 @@ describe("safe artwork URL handling", () => {
   });
 
   it("app.ts handles artwork network error with fallback", () => {
-    expect(app).toContain("artwork player: network error for");
+    expect(app).toContain('diagnostics.add("artwork " + context + ": fallback for "');
+    expect(app).toContain("fallback for");
   });
 
   it("app.ts uses same PLACEHOLDER_IMG constant", () => {
@@ -999,6 +1000,158 @@ describe("service worker", () => {
 
   it("does not cache non-ok responses", () => {
     expect(sw).toContain("res.ok");
+  });
+});
+
+describe("privacy consent gate", () => {
+  const consent = readFile("src/services/consent.ts");
+  const appShell = readFile("src/layouts/AppShell.astro");
+  const app = readFile("src/scripts/app.ts");
+  const dashboard = readFile("src/scripts/dashboard.ts");
+  const playlists = readFile("src/scripts/playlists.ts");
+  const swRegister = readFile("src/scripts/sw-register.ts");
+  const db = readFile("src/services/db.ts");
+  const player = readFile("src/services/player.ts");
+  const reporter = readFile("src/services/reporter.ts");
+  const i18n = readFile("src/services/i18n.ts");
+  const globalScss = readFile("src/styles/global.scss");
+
+  it("defines versioned consent categories", () => {
+    expect(consent).toContain('type ConsentCategory = "necessary" | "preferences" | "offline" | "diagnostics"');
+    expect(consent).toContain("export interface ConsentState");
+    expect(consent).toContain("CONSENT_VERSION = 1");
+  });
+
+  it("does not claim cookies are used", () => {
+    expect(consent).toContain("No cookies");
+    expect(consent).not.toContain("document.cookie");
+  });
+
+  it("renders an accessible modal that cannot be dismissed by Escape or backdrop", () => {
+    expect(consent).toContain('role="dialog"');
+    expect(consent).toContain('aria-modal="true"');
+    expect(consent).toContain('aria-labelledby="consent-title"');
+    expect(consent).toContain('event.key === "Escape"');
+    expect(consent).toContain("data-consent-backdrop");
+    expect(consent).toContain("focusDialog(dialog)");
+  });
+
+  it("renders exactly two consent decision buttons", () => {
+    expect(consent).toContain('id="consent-accept"');
+    expect(consent).toContain('id="consent-continue-private"');
+    expect(consent).not.toContain("consent-decline");
+    expect(consent).not.toContain("text.decline");
+  });
+
+  it("keeps Privacy Policy as a secondary link", () => {
+    expect(consent).toContain("consent-dialog__privacy-link");
+    expect(consent).toContain("text.privacy");
+    expect(globalScss).toContain(".consent-dialog__privacy-link");
+  });
+
+  it("centers the consent heading", () => {
+    expect(globalScss).toContain(".consent-dialog h2");
+    expect(globalScss).toContain("text-align: center");
+  });
+
+  it("blocks the shell before consent", () => {
+    expect(appShell).toContain("consent-preload-blocked");
+    expect(globalScss).toContain("pointer-events: none");
+    expect(globalScss).toContain(".consent-gate");
+  });
+
+  it("waits for consent before app, dashboard, playlists, and service worker init", () => {
+    expect(app).toContain("whenConsentResolved().then(() => init())");
+    expect(dashboard).toContain("whenConsentResolved().then(() => init())");
+    expect(playlists).toContain("whenConsentResolved().then(() => init())");
+    expect(swRegister).toContain("whenConsentResolved().then");
+  });
+
+  it("uses one global consent resolved event across bundles", () => {
+    expect(consent).toContain("radiova:consent-resolved");
+    expect(consent).toContain("window.__radiovaConsentResolved");
+    expect(consent).toContain("ConsentResolvedDetail");
+  });
+
+  it("does not register service worker before offline consent", () => {
+    expect(swRegister).toContain("hasConsent('offline')");
+    expect(swRegister).toContain("navigator.serviceWorker.register");
+  });
+
+  it("does not open IndexedDB before preferences consent", () => {
+    expect(db).toContain("if (!hasConsent('preferences'))");
+    expect(db).toContain("Preferences storage is disabled by consent");
+  });
+
+  it("disables optional localStorage before preferences or diagnostics consent", () => {
+    expect(player).toContain('hasConsent("preferences")');
+    expect(i18n).toContain("hasConsent('preferences')");
+    expect(reporter).toContain("hasConsent('diagnostics')");
+  });
+
+  it("supports declined privacy mode without persisted decline flag", () => {
+    expect(consent).toContain('status: "declined"');
+    expect(consent).toContain("Continue in privacy mode");
+    expect(consent).toContain('ConsentMode = "accepted" | "private"');
+    expect(consent).not.toContain("persistDeclined");
+  });
+
+  it("withdrawal unregisters service worker, clears Radiova caches, and deletes IndexedDB", () => {
+    expect(consent).toContain("navigator.serviceWorker.getRegistrations");
+    expect(consent).toContain("registration.unregister");
+    expect(consent).toContain("key.startsWith(CACHE_PREFIX)");
+    expect(consent).toContain('indexedDB.deleteDatabase("radiova")');
+  });
+});
+
+describe("compact player empty state", () => {
+  const appShell = readFile("src/layouts/AppShell.astro");
+  const app = readFile("src/scripts/app.ts");
+  const player = readFile("src/services/player.ts");
+  const i18n = readFile("src/services/i18n.ts");
+  const globalScss = readFile("src/styles/global.scss");
+
+  it("uses a local placeholder image before any station is selected", () => {
+    expect(appShell).toContain('src="/assets/images/station-placeholder.svg"');
+    expect(appShell).not.toContain('id="header-station-image" class="header-player__image" src=""');
+  });
+
+  it("has localized empty title and subtitle strings", () => {
+    for (const text of [
+      "No station selected",
+      "Choose a station from the list",
+      "Станцію не вибрано",
+      "Виберіть станцію зі списку",
+      "Kein Sender ausgewählt",
+      "Wählen Sie einen Sender aus der Liste",
+    ]) {
+      expect(i18n + appShell + player).toContain(text);
+    }
+  });
+
+  it("does not duplicate the empty title into the compact status", () => {
+    expect(player).toContain('idle: "Choose a station from the list"');
+    expect(player).toContain('idle: "Виберіть станцію зі списку"');
+    expect(player).toContain('idle: "Wählen Sie einen Sender aus der Liste"');
+  });
+
+  it("disables the compact play target without a station", () => {
+    expect(appShell).toContain('aria-disabled="true"');
+    expect(app).toContain("if (!currentStation) return;");
+    expect(app).toContain('logo.classList.toggle("is-disabled", !hasStation)');
+  });
+
+  it("uses one player image fallback helper", () => {
+    expect(app).toContain("function setPlayerImage");
+    expect(app).toContain("img.onerror = () =>");
+    expect(app).toContain("img.src = PLACEHOLDER_IMG");
+  });
+
+  it("keeps compact title and subtitle aligned with ellipsis", () => {
+    expect(globalScss).toContain(".header-player__title");
+    expect(globalScss).toContain(".player-status--compact");
+    expect(globalScss).toContain("text-overflow: ellipsis");
+    expect(globalScss).toContain(".header-player__logo.is-disabled");
   });
 });
 

@@ -16,6 +16,7 @@ const currentPath = Astro.url.pathname;
       <li data-i18n="privacy.data.history">Історія прослуховування</li>
       <li data-i18n="privacy.data.settings">Налаштування додатку (мова, тема, гучність)</li>
       <li data-i18n="privacy.data.custom">Користувацькі плейлисти</li>
+      <li data-i18n="privacy.data.offline">Офлайн-оболонка додатку та кеш плейлистів</li>
     </ul>
 
     <h2 class="content-page__subtitle" data-i18n="privacy.thirdParty">Сторонні сервіси</h2>
@@ -23,6 +24,7 @@ const currentPath = Astro.url.pathname;
 
     <h2 class="content-page__subtitle" data-i18n="privacy.reset">Скидання локальних даних</h2>
     <p class="content-page__text" data-i18n="privacy.reset.text">Ви можете будь-коли очистити всі локально збережені дані за допомогою кнопки нижче.</p>
+    <button class="action-btn privacy-settings-action" type="button" data-i18n="privacy.settings.action">Налаштування конфіденційності</button>
     <button id="reset-data-btn" class="action-btn" type="button" data-i18n="privacy.reset.action">Скинути всі дані</button>
     <p id="reset-status" class="status" role="status"></p>
   </section>

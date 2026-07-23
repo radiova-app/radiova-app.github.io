@@ -1,5 +1,6 @@
 import { loadLocale, t, applyI18n } from "../services/i18n";
 import { loadPlaylist } from "../services/playlist";
+import { whenConsentResolved } from "../services/consent";
 import {
   getSharedPlayerState,
   onChange,
@@ -476,5 +477,5 @@ function reinitOnNavigation(): void {
 document.addEventListener("astro:page-load", reinitOnNavigation);
 
 document.addEventListener("DOMContentLoaded", () => {
-  void init();
+  void whenConsentResolved().then(() => init());
 });

@@ -1,3 +1,5 @@
+import { hasConsent } from "./consent";
+
 export type PlayerState =
   "idle" | "loading" | "waiting" | "retrying" | "playing" | "paused" | "error";
 
@@ -125,6 +127,7 @@ function notifyChange(): void {
 }
 
 function loadVolume(): number {
+  if (!hasConsent("preferences")) return 0.75;
   try {
     const v = localStorage.getItem(STORAGE_KEY_VOLUME);
     if (v !== null) {
@@ -138,6 +141,7 @@ function loadVolume(): number {
 }
 
 function saveVolume(v: number): void {
+  if (!hasConsent("preferences")) return;
   try {
     localStorage.setItem(STORAGE_KEY_VOLUME, String(v));
   } catch {
@@ -146,6 +150,7 @@ function saveVolume(v: number): void {
 }
 
 function loadMuted(): boolean {
+  if (!hasConsent("preferences")) return false;
   try {
     return localStorage.getItem(STORAGE_KEY_MUTED) === "true";
   } catch {
@@ -154,6 +159,7 @@ function loadMuted(): boolean {
 }
 
 function saveMuted(m: boolean): void {
+  if (!hasConsent("preferences")) return;
   try {
     localStorage.setItem(STORAGE_KEY_MUTED, String(m));
   } catch {
@@ -318,7 +324,7 @@ export function getPlaybackStatusLabel(status: PlayerState): string {
   const lang = docLang === "uk" || docLang === "de" ? docLang : "en";
   const labels: Record<"en" | "uk" | "de", Record<PlayerState, string>> = {
     en: {
-      idle: "No station selected",
+      idle: "Choose a station from the list",
       loading: "Loading...",
       playing: "Playing",
       paused: "Paused",
@@ -327,7 +333,7 @@ export function getPlaybackStatusLabel(status: PlayerState): string {
       error: "Stream error",
     },
     uk: {
-      idle: "Не вибрано станцію",
+      idle: "Виберіть станцію зі списку",
       loading: "Завантаження...",
       playing: "Грає",
       paused: "Призупинено",
@@ -336,7 +342,7 @@ export function getPlaybackStatusLabel(status: PlayerState): string {
       error: "Помилка потоку",
     },
     de: {
-      idle: "Kein Sender ausgewählt",
+      idle: "Wählen Sie einen Sender aus der Liste",
       loading: "Wird geladen...",
       playing: "Wiedergabe",
       paused: "Pausiert",
