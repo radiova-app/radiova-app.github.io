@@ -17,6 +17,8 @@ let currentStations: Station[] = [];
 let currentEndpointIndex = 0;
 let settings: Awaited<ReturnType<typeof getSettings>>;
 let equalizer: EqualizerHandle | null = null;
+let sidebarAbortController: AbortController | null = null;
+let restoredOnce = false;
 const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
 const diagnostics: { logs: string[]; add: (msg: string) => void; clear: () => void; render: () => void } = {
@@ -50,10 +52,10 @@ async function init(): Promise<void> {
   settings = await getSettings();
 
   initPWA();
-  setupSidebar();
   setupPlayerListeners();
   setupHeaderControls();
   setupDashboardControls();
+  bindSidebar();
 
   applyPlayerVisibility();
 
@@ -94,6 +96,8 @@ function applyPlayerVisibility(): void {
 }
 
 async function restorePlayerState(): Promise<void> {
+  if (restoredOnce) return;
+  restoredOnce = true;
   if (!settings.lastStationId) return;
 
   const stationId = settings.lastStationId;
@@ -194,36 +198,34 @@ function setupResizeHandler(): void {
   });
 }
 
-function setupSidebar(): void {
+function bindSidebar(): void {
+  sidebarAbortController?.abort();
+  sidebarAbortController = new AbortController();
+  const signal = sidebarAbortController.signal;
+
   const shell = $('shell');
   const sidebar = $('sidebar');
+  const toggleBtn = $('sidebar-toggle');
+  if (!shell || !sidebar || !toggleBtn) return;
 
   function isMobile(): boolean {
     return window.innerWidth < 640;
   }
 
-  function toggleSidebar(): void {
-    const s = shell;
-    const b = sidebar;
-    if (!s || !b) return;
+  toggleBtn.addEventListener('click', () => {
     if (isMobile()) {
-      b.classList.toggle('is-open-mobile');
+      sidebar.classList.toggle('is-open-mobile');
     } else {
-      s.classList.toggle('shell-collapsed');
-      settings.sidebarCollapsed = s.classList.contains('shell-collapsed');
+      shell.classList.toggle('shell-collapsed');
+      settings.sidebarCollapsed = shell.classList.contains('shell-collapsed');
       void saveSettings(settings);
     }
-  }
-
-  if (!shell || !sidebar) return;
-
-  const toggleBtn = $('sidebar-toggle');
-  if (toggleBtn) toggleBtn.addEventListener('click', toggleSidebar);
+  }, { signal });
 
   document.querySelectorAll('[data-sidebar-route]').forEach((link) => {
     link.addEventListener('click', () => {
       if (isMobile()) sidebar.classList.remove('is-open-mobile');
-    });
+    }, { signal });
   });
 }
 
@@ -600,5 +602,44 @@ function escapeHtml(str: string): string {
   div.textContent = str;
   return div.innerHTML;
 }
+
+function updateLanguageActiveState(): void {
+  const path = window.location.pathname;
+  const locale = path.startsWith('/uk/') || path === '/uk' ? 'uk' : path.startsWith('/de/') || path === '/de' ? 'de' : 'en';
+  for (const l of ['en', 'de', 'uk']) {
+    const link = document.getElementById('lang-' + l);
+    if (!link) continue;
+    const isActive = l === locale;
+    link.setAttribute('aria-current', isActive ? 'true' : '');
+    link.classList.toggle('is-active', isActive);
+  }
+}
+
+function onPageNavigation(): void {
+  applyPlayerVisibility();
+  updateLanguageActiveState();
+  bindSidebar();
+  syncAllVolumeSliders();
+  syncAllMuteButtons();
+
+  const eqLeft = $('dashboard-equalizer-left') as HTMLCanvasElement | null;
+  const eqRight = $('dashboard-equalizer-right') as HTMLCanvasElement | null;
+
+  if (equalizer) {
+    equalizer.rebindCanvases(eqLeft, eqRight);
+    const audioEl = getAudioElement();
+    if (audioEl) equalizer.setAudioElement(audioEl);
+    const state = getState();
+    if (state === 'playing') equalizer.start();
+  } else if (eqLeft && eqRight) {
+    equalizer = createEqualizer(eqLeft, eqRight);
+    const audioEl = getAudioElement();
+    if (audioEl) equalizer.setAudioElement(audioEl);
+    const state = getState();
+    if (state === 'playing') equalizer.start();
+  }
+}
+
+document.addEventListener('astro:page-load', onPageNavigation);
 
 document.addEventListener('DOMContentLoaded', () => { void init(); });

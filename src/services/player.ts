@@ -39,7 +39,10 @@ let currentStationInfo: PlayerStationInfo = {
 
 function getAudio(): HTMLAudioElement {
   if (!audio) {
-    audio = new Audio();
+    audio = document.getElementById('persistent-audio') as HTMLAudioElement | null;
+    if (!audio) {
+      audio = new Audio();
+    }
     audio.preload = 'none';
     audio.crossOrigin = 'anonymous';
 

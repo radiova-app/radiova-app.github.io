@@ -1,10 +1,11 @@
-export type EqMode = 'native-audio' | 'real-analyser' | 'analyser-unavailable' | 'cors-blocked';
+export type EqMode = 'real-stereo' | 'mono-fallback' | 'cors-blocked' | 'unavailable' | 'paused';
 
 export interface EqualizerHandle {
   start: () => void;
   stop: () => void;
   setAudioElement: (el: HTMLAudioElement | null) => void;
   resize: () => void;
+  rebindCanvases: (left: HTMLCanvasElement | null, right: HTMLCanvasElement | null) => void;
   destroy: () => void;
   prepare: () => void;
   getMode: () => EqMode;
@@ -17,41 +18,59 @@ export interface SideVisualizerHandle {
   destroy: () => void;
 }
 
+// Persistent audio graph (created once, survives navigation)
 let audioCtx: AudioContext | null = null;
 let source: MediaElementAudioSourceNode | null = null;
-let analyser: AnalyserNode | null = null;
+let splitter: ChannelSplitterNode | null = null;
+let analyserL: AnalyserNode | null = null;
+let analyserR: AnalyserNode | null = null;
+let graphConnected = false;
+let graphAudioElement: HTMLAudioElement | null = null;
+let eqMode: EqMode = 'unavailable';
+let modeLogged = false;
+
+// View state (rebound per navigation)
 let canvasLeft: HTMLCanvasElement | null = null;
 let canvasRight: HTMLCanvasElement | null = null;
 let ctxLeft: CanvasRenderingContext2D | null = null;
 let ctxRight: CanvasRenderingContext2D | null = null;
 let canvasSide: HTMLCanvasElement | null = null;
 let ctxSide: CanvasRenderingContext2D | null = null;
-let currentAudio: HTMLAudioElement | null = null;
+
 let isActive = false;
 let reducedMotion = false;
-let eqMode: EqMode = 'native-audio';
-let graphConnected = false;
+let animFrameId: number | null = null;
 
-function ensureAudioContext(): AudioContext {
-  if (!audioCtx) {
-    audioCtx = new AudioContext();
+function logMode(mode: EqMode): void {
+  if (modeLogged) return;
+  modeLogged = true;
+  const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  if (isDev) console.log('equalizer mode: ' + mode);
+}
+
+function ensureAudioContext(): AudioContext | null {
+  try {
+    if (!audioCtx) {
+      audioCtx = new AudioContext();
+    }
+    if (audioCtx.state === 'suspended') {
+      void audioCtx.resume();
+    }
+    return audioCtx;
+  } catch {
+    return null;
   }
-  if (audioCtx.state === 'suspended') {
-    void audioCtx.resume();
-  }
-  return audioCtx;
 }
 
 function resumeAudioContext(): Promise<void> {
-  const ctx = ensureAudioContext();
-  if (ctx.state === 'suspended') {
+  const ctx = audioCtx;
+  if (ctx && ctx.state === 'suspended') {
     return ctx.resume().then(() => undefined).catch(() => undefined);
   }
   return Promise.resolve();
 }
 
-function getCtx(canvas: HTMLCanvasElement | null, prev: CanvasRenderingContext2D | null): CanvasRenderingContext2D | null {
-  if (prev) return prev;
+function getCtx(canvas: HTMLCanvasElement | null): CanvasRenderingContext2D | null {
   if (!canvas) return null;
   return canvas.getContext('2d') || null;
 }
@@ -62,7 +81,6 @@ function drawBars(c: CanvasRenderingContext2D, dataArray: Uint8Array, bufferLeng
   c.clearRect(0, 0, w, h);
   c.fillStyle = '#080e1f';
   c.fillRect(0, 0, w, h);
-
   const barCount = Math.min(bufferLength, 64);
   if (!dataArray.some((value) => value > 0)) {
     drawStaticCanvas(c);
@@ -155,60 +173,127 @@ function drawStaticCanvas(c: CanvasRenderingContext2D): void {
 }
 
 function tick(): void {
-  if (!isActive || !analyser) {
+  if (!isActive) {
     drawStatic();
     return;
   }
-  const bufferLength = analyser.frequencyBinCount;
-  const dataArray = new Uint8Array(bufferLength);
-  analyser.getByteFrequencyData(dataArray);
 
-  if (ctxLeft && canvasLeft) drawBars(ctxLeft, dataArray, bufferLength, false);
-  if (ctxRight && canvasRight) drawBars(ctxRight, dataArray, bufferLength, true);
-  if (ctxSide && canvasSide) drawSide(ctxSide, dataArray);
+  if (eqMode === 'paused' || eqMode === 'cors-blocked' || eqMode === 'unavailable') {
+    drawStatic();
+    animFrameId = requestAnimationFrame(tick);
+    return;
+  }
+
+  const bufferLength = (analyserL?.frequencyBinCount ?? 0);
+  if (!bufferLength) {
+    drawStatic();
+    animFrameId = requestAnimationFrame(tick);
+    return;
+  }
+
+  const dataL = new Uint8Array(bufferLength);
+  const dataR = new Uint8Array(bufferLength);
+  if (analyserL) analyserL.getByteFrequencyData(dataL);
+  if (analyserR) analyserR.getByteFrequencyData(dataR);
+
+  const hasDataL = dataL.some((v) => v > 0);
+  const hasDataR = dataR.some((v) => v > 0);
+
+  if (eqMode === 'mono-fallback') {
+    if (ctxLeft && canvasLeft) drawBars(ctxLeft, dataL, bufferLength, false);
+    if (ctxRight && canvasRight) drawBars(ctxRight, dataL, bufferLength, true);
+  } else {
+    if (ctxLeft && canvasLeft) drawBars(ctxLeft, dataL, bufferLength, false);
+    if (ctxRight && canvasRight) drawBars(ctxRight, dataR, bufferLength, true);
+  }
+
+  if (ctxSide && canvasSide) drawSide(ctxSide, dataL);
+
+  if (!hasDataL && !hasDataR) {
+    classifyMode();
+  }
 
   animFrameId = requestAnimationFrame(tick);
 }
 
-let animFrameId: number | null = null;
+function classifyMode(): void {
+  if (!audioCtx || !graphConnected) {
+    eqMode = 'unavailable';
+  } else {
+    eqMode = 'cors-blocked';
+  }
+  logMode(eqMode);
+}
 
-function setupAudioGraph(audioEl: HTMLAudioElement): boolean {
+function ensureGraph(audioEl: HTMLAudioElement): boolean {
+  if (graphConnected && source && source.mediaElement === audioEl) return true;
   try {
-    if (graphConnected && source && source.mediaElement === audioEl) return true;
-    if (graphConnected) clearGraph();
-    const ctx = ensureAudioContext();
-    source = ctx.createMediaElementSource(audioEl);
-    analyser = ctx.createAnalyser();
-    analyser.fftSize = 128;
-    source.connect(analyser);
-    analyser.connect(ctx.destination);
+    if (!audioCtx) {
+      audioCtx = ensureAudioContext();
+    }
+    if (!audioCtx) { eqMode = 'unavailable'; return false; }
+
+    source = audioCtx.createMediaElementSource(audioEl);
+    splitter = audioCtx.createChannelSplitter(2);
+    analyserL = audioCtx.createAnalyser();
+    analyserR = audioCtx.createAnalyser();
+    analyserL.fftSize = 128;
+    analyserR.fftSize = 128;
+
+    source.connect(splitter);
+    splitter.connect(analyserL, 0);
+    splitter.connect(analyserR, 1);
+    analyserL.connect(audioCtx.destination);
+    analyserR.connect(audioCtx.destination);
+
     graphConnected = true;
-    eqMode = 'real-analyser';
+    graphAudioElement = audioEl;
+    eqMode = 'real-stereo';
+    modeLogged = false;
+    logMode(eqMode);
     return true;
   } catch {
     source = null;
-    analyser = null;
+    splitter = null;
+    analyserL = null;
+    analyserR = null;
     graphConnected = false;
-    eqMode = 'analyser-unavailable';
+    eqMode = 'cors-blocked';
+    logMode(eqMode);
     return false;
   }
 }
 
 function clearGraph(): void {
   if (source) { try { source.disconnect(); } catch { /* ignore */ } source = null; }
-  if (analyser) { try { analyser.disconnect(); } catch { /* ignore */ } analyser = null; }
+  if (splitter) { try { splitter.disconnect(); } catch { /* ignore */ } splitter = null; }
+  if (analyserL) { try { analyserL.disconnect(); } catch { /* ignore */ } analyserL = null; }
+  if (analyserR) { try { analyserR.disconnect(); } catch { /* ignore */ } analyserR = null; }
   graphConnected = false;
+  graphAudioElement = null;
+  eqMode = 'unavailable';
+  modeLogged = false;
+}
+
+function destroyGraph(): void {
+  stopAnimation();
+  clearGraph();
+  if (audioCtx) { void audioCtx.close(); audioCtx = null; }
+}
+
+function stopAnimation(): void {
+  isActive = false;
+  if (animFrameId !== null) { cancelAnimationFrame(animFrameId); animFrameId = null; }
 }
 
 export function createSideVisualizer(canvasEl: HTMLCanvasElement): SideVisualizerHandle {
   canvasSide = canvasEl;
-  ctxSide = getCtx(canvasSide, ctxSide);
+  ctxSide = getCtx(canvasSide);
   if (ctxSide) drawSideStatic(ctxSide);
 
   return {
     setAudioElement(el: HTMLAudioElement | null): void {
-      currentAudio = el;
-      if (el && isActive) setupAudioGraph(el);
+      if (el && isActive) ensureGraph(el);
     },
     start(): void { /* side uses same tick loop */ },
     stop(): void {
@@ -224,8 +309,8 @@ export function createSideVisualizer(canvasEl: HTMLCanvasElement): SideVisualize
 export function createEqualizer(left: HTMLCanvasElement, right: HTMLCanvasElement): EqualizerHandle {
   canvasLeft = left;
   canvasRight = right;
-  ctxLeft = getCtx(canvasLeft, ctxLeft);
-  ctxRight = getCtx(canvasRight, ctxRight);
+  ctxLeft = getCtx(canvasLeft);
+  ctxRight = getCtx(canvasRight);
   reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const handle: EqualizerHandle = {
@@ -241,8 +326,11 @@ export function createEqualizer(left: HTMLCanvasElement, right: HTMLCanvasElemen
       if (isActive) return;
       isActive = true;
       if (reducedMotion) return;
-      if (currentAudio && !graphConnected) {
-        setupAudioGraph(currentAudio);
+      if (graphAudioElement && !graphConnected) {
+        ensureGraph(graphAudioElement);
+      }
+      if (eqMode === 'unavailable') {
+        classifyMode();
       }
       if (animFrameId) cancelAnimationFrame(animFrameId);
       animFrameId = requestAnimationFrame(tick);
@@ -250,27 +338,35 @@ export function createEqualizer(left: HTMLCanvasElement, right: HTMLCanvasElemen
 
     stop(): void {
       isActive = false;
+      eqMode = 'paused';
       drawStatic();
       if (animFrameId !== null) { cancelAnimationFrame(animFrameId); animFrameId = null; }
     },
 
     setAudioElement(el: HTMLAudioElement | null): void {
-      if (currentAudio === el) return;
-      currentAudio = el;
-      if (el && isActive && !graphConnected) setupAudioGraph(el);
+      if (!el) return;
+      if (graphConnected && graphAudioElement === el) return;
+      graphAudioElement = el;
+      if (isActive && !graphConnected) ensureGraph(el);
+    },
+
+    rebindCanvases(left: HTMLCanvasElement | null, right: HTMLCanvasElement | null): void {
+      canvasLeft = left;
+      canvasRight = right;
+      ctxLeft = left ? getCtx(left) : null;
+      ctxRight = right ? getCtx(right) : null;
+      drawStatic();
     },
 
     resize(): void { drawStatic(); },
 
     destroy(): void {
-      handle.stop();
-      clearGraph();
-      if (audioCtx) { void audioCtx.close(); audioCtx = null; }
+      destroyGraph();
       canvasLeft = null;
       canvasRight = null;
       ctxLeft = null;
       ctxRight = null;
-      currentAudio = null;
+      graphAudioElement = null;
     },
   };
 

@@ -390,4 +390,15 @@ function escapeHtml(str: string): string {
   return div.innerHTML;
 }
 
+function reinitOnNavigation(): void {
+  if (document.getElementById('stations-list')) {
+    loadLocale();
+    applyI18n();
+    renderStationList();
+    updateFavoritesTabVisibility();
+  }
+}
+
+document.addEventListener('astro:page-load', reinitOnNavigation);
+
 document.addEventListener('DOMContentLoaded', () => { void init(); });

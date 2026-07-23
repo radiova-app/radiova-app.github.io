@@ -1,4 +1,4 @@
-const CACHE = 'radiova-v3';
+const CACHE = 'radiova-v4';
 const STATIC_URLS = [
   '/',
   '/playlists',
@@ -46,18 +46,23 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  const url = new URL(event.request.url);
+  const requestUrl = new URL(event.request.url);
+
+  // Never cache or serve source TypeScript/JS files
+  if (requestUrl.pathname.startsWith('/src/')) {
+    return;
+  }
 
   // Bypass caching for audio/media streams
   const contentType = event.request.headers.get('Accept') || '';
   const isAudio = contentType.includes('audio/')
-    || url.pathname.match(/\.(mp3|aac|ogg|wav|flac|opus|m3u8|m3u|pls|asx)$/i);
-  if (isAudio || url.port === '8443' || url.port === '8000' || url.port === '8080') {
+    || requestUrl.pathname.match(/\.(mp3|aac|ogg|wav|flac|opus|m3u8|m3u|pls|asx)$/i);
+  if (isAudio || requestUrl.port === '8443' || requestUrl.port === '8000' || requestUrl.port === '8080') {
     return;
   }
 
   // Cache-first for static app shell
-  if (url.origin === self.location.origin && isAppShell(url.pathname)) {
+  if (requestUrl.origin === self.location.origin && isAppShell(requestUrl.pathname)) {
     event.respondWith(
       (async () => {
         const cache = await caches.open(CACHE);
@@ -70,7 +75,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Network-first for playlist data from GitHub
-  if (url.hostname === 'raw.githubusercontent.com' && url.pathname.includes('radiova-stations')) {
+  if (requestUrl.hostname === 'raw.githubusercontent.com' && requestUrl.pathname.includes('radiova-stations')) {
     event.respondWith(
       (async () => {
         try {

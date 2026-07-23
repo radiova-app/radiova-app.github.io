@@ -1,5 +1,6 @@
 ---
 import "../styles/global.scss";
+import { ViewTransitions } from "astro:transitions";
 
 interface SidebarItem {
   href: string;
@@ -72,8 +73,10 @@ const normPath = enHref === "" ? "/" : enHref;
     <link rel="apple-touch-icon" href="/assets/icons/icon-192.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="canonical" href={"https://radiova-app.github.io" + Astro.url.pathname} />
-  </head>
+    <ViewTransitions />
+    </head>
   <body>
+    <audio id="persistent-audio" transition:persist preload="none" crossorigin="anonymous" hidden></audio>
     <div class="shell" id="shell">
       <header class="topbar" id="topbar">
         <div class="topbar-left">
@@ -107,12 +110,12 @@ const normPath = enHref === "" ? "/" : enHref;
         <div class="topbar-actions">
           <span id="update-status" class="topbar__status"></span>
           <button id="pwa-install-btn" class="topbar__btn is-hidden" type="button">Install</button>
-          <nav class="lang-switcher" aria-label={lang === "uk" ? "Вибір мови" : lang === "de" ? "Sprachauswahl" : "Language switcher"}>
-            <a href={normPath} class="lang-switcher__link" aria-current={lang === "en" ? "true" : undefined}>EN</a>
+          <nav class="lang-switcher" id="lang-switcher" aria-label={lang === "uk" ? "Вибір мови" : lang === "de" ? "Sprachauswahl" : "Language switcher"}>
+            <a href={normPath} id="lang-en" class="lang-switcher__link" aria-current={lang === "en" ? "true" : undefined}>EN</a>
             <span class="lang-switcher__sep" aria-hidden="true">|</span>
-            <a href={deHref} class="lang-switcher__link" aria-current={lang === "de" ? "true" : undefined}>DE</a>
+            <a href={deHref} id="lang-de" class="lang-switcher__link" aria-current={lang === "de" ? "true" : undefined}>DE</a>
             <span class="lang-switcher__sep" aria-hidden="true">|</span>
-            <a href={ukHref} class="lang-switcher__link" aria-current={lang === "uk" ? "true" : undefined}>UK</a>
+            <a href={ukHref} id="lang-uk" class="lang-switcher__link" aria-current={lang === "uk" ? "true" : undefined}>UK</a>
           </nav>
         </div>
       </header>
@@ -132,7 +135,11 @@ const normPath = enHref === "" ? "/" : enHref;
         </div>
       </div>
     </div>
-    <script src="/src/scripts/sw-register.ts"></script>
-    <script src="/src/scripts/app.ts"></script>
+    <script>
+      import "../scripts/sw-register.ts";
+    </script>
+    <script>
+      import "../scripts/app.ts";
+    </script>
   </body>
 </html>

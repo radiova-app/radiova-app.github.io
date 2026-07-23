@@ -1207,3 +1207,52 @@ img {
     height: 24px;
   }
 }
+
+// ===== LANGUAGE SWITCHER =====
+.lang-switcher {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lang-switcher__link {
+  font-size: 0.875rem;
+  color: $muted;
+  text-decoration: none;
+  padding: 2px 4px;
+  border-radius: 3px;
+  transition: color 150ms;
+}
+
+.lang-switcher__link:hover {
+  color: $accent-hover;
+}
+
+.lang-switcher__link.is-active,
+.lang-switcher__link[aria-current="true"] {
+  color: $accent;
+  font-weight: 600;
+}
+
+.lang-switcher__sep {
+  color: $muted;
+  font-size: 0.875rem;
+  user-select: none;
+}
+// ===== VIEW TRANSITIONS =====
+html {
+  view-transition-name: none;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 200ms;
+  animation-timing-function: ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0s;
+  }
+}

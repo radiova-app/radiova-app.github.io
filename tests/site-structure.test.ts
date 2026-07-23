@@ -666,3 +666,258 @@ describe("production build", () => {
     expect(pathExists("dist/de/playlists/index.html")).toBe(true);
   });
 });
+
+describe("View Transitions and persistent audio", () => {
+  const appShell = readFile("src/layouts/AppShell.astro");
+  const player = readFile("src/services/player.ts");
+  const app = readFile("src/scripts/app.ts");
+
+  it("imports ViewTransitions in AppShell", () => {
+    expect(appShell).toContain("ViewTransitions");
+    expect(appShell).toContain("astro:transitions");
+  });
+
+  it("has ViewTransitions component in head", () => {
+    expect(appShell).toContain("<ViewTransitions />");
+  });
+
+  it("has persistent audio element with transition:persist", () => {
+    expect(appShell).toContain("persistent-audio");
+    expect(appShell).toContain("transition:persist");
+  });
+
+  it("uses persistent audio element from DOM in player.ts", () => {
+    expect(player).toContain("document.getElementById('persistent-audio')");
+  });
+
+  it("app.ts is bundled via inline import, not direct src reference", () => {
+    const appShell = readFile("src/layouts/AppShell.astro");
+    expect(appShell).toContain("import \"../scripts/app.ts\"");
+    expect(appShell).not.toContain("src=\"/src/scripts/app.ts\"");
+  });
+
+  it("listens for astro:page-load in app.ts", () => {
+    expect(app).toContain("astro:page-load");
+  });
+
+  it("has updateLanguageActiveState function", () => {
+    expect(app).toContain("updateLanguageActiveState");
+  });
+
+  it("has lang-en, lang-de, lang-uk IDs in AppShell", () => {
+    expect(appShell).toContain('id="lang-en"');
+    expect(appShell).toContain('id="lang-de"');
+    expect(appShell).toContain('id="lang-uk"');
+  });
+});
+
+describe("stereo equalizer", () => {
+  const eq = readFile("src/scripts/equalizer.ts");
+
+  it("uses ChannelSplitterNode for stereo", () => {
+    expect(eq).toContain("createChannelSplitter");
+    expect(eq).toContain("splitter");
+  });
+
+  it("has left and right analysers", () => {
+    expect(eq).toContain("analyserL");
+    expect(eq).toContain("analyserR");
+  });
+
+  it("connects splitter outputs to separate analysers", () => {
+    expect(eq).toContain("splitter.connect(analyserL, 0)");
+    expect(eq).toContain("splitter.connect(analyserR, 1)");
+  });
+
+  it("analysers connect to destination", () => {
+    expect(eq).toContain("analyserL.connect(audioCtx.destination)");
+    expect(eq).toContain("analyserR.connect(audioCtx.destination)");
+  });
+
+  it("has real-stereo mode", () => {
+    expect(eq).toContain("real-stereo");
+  });
+
+  it("has cors-blocked mode", () => {
+    expect(eq).toContain("cors-blocked");
+  });
+
+  it("has paused mode", () => {
+    expect(eq).toContain("paused");
+  });
+});
+
+describe("language switcher active state", () => {
+  const globalScss = readFile("src/styles/global.scss");
+
+  it("has is-active style for lang-switcher links", () => {
+    expect(globalScss).toContain("lang-switcher__link.is-active");
+    expect(globalScss).toContain("lang-switcher__link[aria-current");
+  });
+});
+
+describe("no /src/ references in build output", () => {
+  it("dist HTML has no /src/ paths", () => {
+    const files = [
+      "dist/index.html", "dist/uk/index.html", "dist/de/index.html",
+      "dist/playlists/index.html", "dist/uk/playlists/index.html", "dist/de/playlists/index.html",
+      "dist/about/index.html", "dist/uk/about/index.html", "dist/de/about/index.html",
+      "dist/downloads/index.html", "dist/uk/downloads/index.html", "dist/de/downloads/index.html",
+      "dist/help/index.html", "dist/uk/help/index.html", "dist/de/help/index.html",
+      "dist/privacy/index.html", "dist/uk/privacy/index.html", "dist/de/privacy/index.html",
+    ];
+    for (const f of files) {
+      const html = readFile(f);
+      expect(html).not.toContain("/src/");
+    }
+  });
+
+  it("dist HTML has AppShell hashed bundle", () => {
+    const html = readFile("dist/uk/index.html");
+    expect(html).toMatch(/_astro\/AppShell\.astro.*\.js/);
+  });
+});
+
+describe("service worker", () => {
+  const sw = readFile("public/sw.js");
+
+  it("has updated cache version", () => {
+    expect(sw).toContain("radiova-v4");
+  });
+
+  it("guards /src/ paths from caching", () => {
+    expect(sw).toContain("/src/");
+    expect(sw).toContain("startsWith");
+  });
+
+  it("removes old caches on activate", () => {
+    expect(sw).toContain("caches.delete");
+  });
+
+  it("does not cache non-ok responses", () => {
+    expect(sw).toContain("res.ok");
+  });
+});
+
+describe("sidebar rebinding lifecycle", () => {
+  const appShell = readFile("src/layouts/AppShell.astro");
+  const app = readFile("src/scripts/app.ts");
+
+  it("has sidebar-toggle button in AppShell", () => {
+    expect(appShell).toContain("sidebar-toggle");
+  });
+
+  it("calls bindSidebar on init", () => {
+    expect(app).toContain("bindSidebar()");
+  });
+
+  it("calls bindSidebar on astro:page-load", () => {
+    expect(app).toContain("bindSidebar()");
+  });
+
+  it("uses AbortController for sidebar listeners", () => {
+    expect(app).toContain("AbortController");
+    expect(app).toContain("sidebarAbortController?.abort()");
+  });
+
+  it("reads collapse state from settings after toggle", () => {
+    expect(app).toContain("settings.sidebarCollapsed");
+  });
+
+  it("preserves collapsed preference in settings", () => {
+    expect(app).toContain("saveSettings(settings)");
+  });
+});
+
+describe("persistent audio graph (equalizer refactor)", () => {
+  const eq = readFile("src/scripts/equalizer.ts");
+
+  it("has ensureGraph that checks already-connected", () => {
+    expect(eq).toContain("graphConnected && source && source.mediaElement === audioEl");
+  });
+
+  it("has graphConnected flag", () => {
+    expect(eq).toContain("graphConnected");
+  });
+
+  it("has graphAudioElement reference", () => {
+    expect(eq).toContain("graphAudioElement");
+  });
+
+  it("creates only one AudioContext", () => {
+    expect(eq).toContain("if (!audioCtx)");
+    expect(eq).toContain("audioCtx = new AudioContext()");
+  });
+
+  it("has rebindCanvases method", () => {
+    expect(eq).toContain("rebindCanvases");
+  });
+
+  it("does not close AudioContext in rebindCanvases", () => {
+    const ctxClose = eq.match(/audioCtx\.close\(\)/g);
+    expect(ctxClose ? ctxClose.length : 0).toBe(1);
+  });
+
+  it("has destroyGraph as the only close path", () => {
+    expect(eq).toContain("destroyGraph");
+    expect(eq).toContain("audioCtx.close()");
+  });
+
+  it("clearGraph only called from destroyGraph, not from rebind", () => {
+    expect(eq).toContain("clearGraph()");
+    const clearGraphCalls = eq.match(/clearGraph\(\)/g);
+    expect(clearGraphCalls ? clearGraphCalls.length : 0).toBe(2);
+  });
+
+  it("rebindCanvases implementation does not call clearGraph", () => {
+    const rbImpl = eq.match(/rebindCanvases\([^)]+\): void \{[\s\S]+?\},/);
+    expect(rbImpl).not.toBeNull();
+    if (rbImpl) {
+      expect(rbImpl[0]).not.toContain("clearGraph");
+      expect(rbImpl[0]).not.toContain("destroyGraph");
+      expect(rbImpl[0]).toContain("drawStatic()");
+    }
+  });
+
+  it("separates view lifecycle from graph lifecycle", () => {
+    expect(eq).toContain("// Persistent audio graph");
+    expect(eq).toContain("// View state (rebound per navigation)");
+  });
+});
+
+describe("cold-start restore guards", () => {
+  const app = readFile("src/scripts/app.ts");
+
+  it("has restoredOnce flag", () => {
+    expect(app).toContain("restoredOnce");
+  });
+
+  it("checks restoredOnce before restoring", () => {
+    expect(app).toContain("if (restoredOnce) return");
+  });
+
+  it("onPageNavigation does not call restorePlayerState", () => {
+    expect(app).not.toContain("onPageNavigation.*restorePlayerState");
+  });
+
+  it("onPageNavigation does not call equalizer.destroy", () => {
+    expect(app).not.toContain("equalizer.destroy()");
+  });
+});
+
+describe("onPageNavigation rebind", () => {
+  const app = readFile("src/scripts/app.ts");
+
+  it("calls equalizer.rebindCanvases on navigation", () => {
+    expect(app).toContain("equalizer.rebindCanvases");
+  });
+
+  it("does not recreate equalizer on navigation when one exists", () => {
+    expect(app).toContain("equalizer.rebindCanvases(eqLeft, eqRight)");
+  });
+
+  it("routes to createEqualizer only if no existing equalizer", () => {
+    expect(app).toContain("else if (eqLeft && eqRight)");
+    expect(app).toContain("equalizer = createEqualizer(eqLeft, eqRight)");
+  });
+});
