@@ -1,3 +1,22 @@
+/**
+ * Comprehensive browser-level integration verification.
+ *
+ * Requires: `npm run serve` on port 4322 (with consent pre-accepted).
+ *
+ * Covers multiple phases of the application lifecycle:
+ *   A. Sidebar collapse persistence across navigations
+ *   B. Playlist tab switching and active state
+ *   C. Player controls (play, pause, volume sync, artwork)
+ *   D. Browser back/forward locale preservation
+ *   E. Visualizer canvas presence
+ *   F. Console error inspection
+ *
+ * Screenshots are saved to test-results/verify/final.png.
+ *
+ * Environment: headless Chromium via Playwright.
+ *
+ * Exit: code 0 on all checks pass, 1 on any failure.
+ */
 import { chromium } from 'playwright';
 
 const BASE_URL = 'http://localhost:4322';

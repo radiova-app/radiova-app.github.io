@@ -1,9 +1,16 @@
+/** Milliseconds to wait before treating a stream load as failed. */
 export const STREAM_TIMEOUT_MS = 12000;
 
+/** Fallback image URL used when a station has no artwork. */
 export const PLACEHOLDER_IMG = "/assets/images/station-placeholder.svg";
 
+/** Current consent schema version. Bump to force re-consent on upgrade. */
 export const CONSENT_VERSION = 1;
 
+/**
+ * Custom event name constants used throughout the app.
+ * These are dispatched via document.dispatchEvent.
+ */
 export const EVENTS = {
   VOLUME_CHANGED: "radiova:volume-changed",
   MUTE_CHANGED: "radiova:mute-changed",
@@ -16,6 +23,7 @@ export const EVENTS = {
   CONSENT_CHANGED: "radiova:consent-changed",
 } as const;
 
+/** IndexedDB and localStorage key constants. */
 export const STORAGE = {
   LOCAL_DB_NAME: "radiova",
   LOCAL_DB_VERSION: 1,
@@ -26,6 +34,7 @@ export const STORAGE = {
   STORE_RECENTS: "recents",
 } as const;
 
+/** DOM element ID constants used throughout the app. */
 export const SELECTORS = {
   HEADER_TOGGLE_ICON: "header-toggle-icon",
   HEADER_STATION_IMAGE: "header-station-image",

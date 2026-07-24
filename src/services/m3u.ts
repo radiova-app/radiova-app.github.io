@@ -29,6 +29,12 @@ function parseExtInf(line: string): { name: string; tvgId?: string; endpointId?:
   return meta;
 }
 
+/**
+ * Parse M3U content into an array of Station objects.
+ * Merges duplicate stations by ID and collects multiple endpoints.
+ * @param content - The M3U file content.
+ * @returns Array of parsed Station objects.
+ */
 export function parseM3U(content: string): Station[] {
   const lines = content.split(/\r?\n/);
   const stationMap = new Map<string, Station>();
@@ -102,6 +108,12 @@ function simpleHash(str: string): string {
   return Math.abs(hash).toString(16).slice(0, 16);
 }
 
+/**
+ * Build M3U file content from an array of Station objects.
+ * Each endpoint becomes a separate EXTINF entry.
+ * @param stations - The stations to export.
+ * @returns The M3U file content.
+ */
 export function buildM3U(stations: Station[]): string {
   let out = '#EXTM3U\n';
   for (const st of stations) {
@@ -118,6 +130,12 @@ export function buildM3U(stations: Station[]): string {
   return out;
 }
 
+/**
+ * Validate M3U content structure.
+ * Checks for #EXTM3U header and matching EXTINF/URL pairs.
+ * @param content - The M3U file content.
+ * @returns true if the content is valid M3U.
+ */
 export function validateM3U(content: string): boolean {
   if (!content.startsWith('#EXTM3U')) return false;
   const lines = content.split(/\r?\n/).filter((l) => l.trim());

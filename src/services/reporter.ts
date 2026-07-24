@@ -16,7 +16,10 @@ const MAX_QUEUE_SIZE = 50;
 
 /** LocalStorage-backed report queue (max 50 entries). */
 export class LocalQueueTransport {
-  /** Append a report to the queue in localStorage. */
+  /**
+   * Append a report to the queue in localStorage.
+   * @param report - The stream report to enqueue.
+   */
   enqueue(report: StreamReport): void {
     if (!hasConsent('diagnostics')) return;
     try {
@@ -28,7 +31,10 @@ export class LocalQueueTransport {
     }
   }
 
-  /** Read all queued reports. */
+  /**
+   * Read all queued reports.
+   * @returns Array of queued StreamReport objects.
+   */
   list(): StreamReport[] {
     if (!hasConsent('diagnostics')) return [];
     try {
@@ -54,7 +60,11 @@ export class LocalQueueTransport {
 
 /** No-op remote transport (placeholder for future server-side reporting). */
 export class DisabledRemoteTransport {
-  /** Always returns false — no remote endpoint configured. */
+  /**
+   * Always returns false — no remote endpoint configured.
+   * @param _report - The stream report (ignored).
+   * @returns A promise that resolves to false.
+   */
   send(_report: StreamReport): Promise<boolean> {
     return Promise.resolve(false);
   }
@@ -66,6 +76,7 @@ const remote = new DisabledRemoteTransport();
 /**
  * Queue a stream failure report locally and attempt remote delivery.
  * Respects the diagnostics consent category.
+ * @param report - The stream failure report to queue.
  */
 export function queueStreamReport(report: StreamReport): void {
   if (!hasConsent('diagnostics')) return;

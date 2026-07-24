@@ -6,13 +6,22 @@ import { whenConsentResolved } from '../services/consent';
 import type { CustomPlaylist } from '../types/storage';
 import { $ } from '../shared/dom';
 
-/** Set the status message element text. */
+/**
+ * Set the status message element text.
+ * @param message - The message to display (default: empty).
+ */
 function setStatus(message = ''): void {
   const status = $('custom-playlists-status');
   if (status) status.textContent = message;
 }
 
-/** Create an action button for a custom playlist card. */
+/**
+ * Create an action button for a custom playlist card.
+ * @param label - The button text.
+ * @param action - The action identifier.
+ * @param name - The playlist name.
+ * @returns The button element.
+ */
 function createButton(label: string, action: string, name: string): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
@@ -23,7 +32,11 @@ function createButton(label: string, action: string, name: string): HTMLButtonEl
   return button;
 }
 
-/** Render a single custom playlist as a DOM element. */
+/**
+ * Render a single custom playlist as a DOM element.
+ * @param playlist - The playlist to render.
+ * @returns The playlist DOM element.
+ */
 function renderCustomPlaylist(playlist: CustomPlaylist): HTMLElement {
   const item = document.createElement('article');
   item.className = 'custom-playlist-item';
@@ -86,7 +99,10 @@ async function createPlaylist(): Promise<void> {
   await renderCustomPlaylists();
 }
 
-/** Import stations from an M3U file as a new custom playlist. */
+/**
+ * Import stations from an M3U file as a new custom playlist.
+ * @param file - The M3U file to import.
+ */
 async function importPlaylist(file: File): Promise<void> {
   const content = await file.text();
   if (!validateM3U(content)) {
@@ -104,7 +120,10 @@ async function importPlaylist(file: File): Promise<void> {
   await renderCustomPlaylists();
 }
 
-/** Route a click on a playlist action button (export/rename/delete). */
+/**
+ * Route a click on a playlist action button (export/rename/delete).
+ * @param target - The clicked element.
+ */
 async function handlePlaylistAction(target: HTMLElement): Promise<void> {
   const action = target.dataset['action'];
   const name = target.dataset['name'];
@@ -152,7 +171,10 @@ async function renderManifestInfo(): Promise<void> {
   }
 }
 
-/** Copy a playlist URL to clipboard. */
+/**
+ * Copy a playlist URL to clipboard.
+ * @param button - The button element containing the URL in data-url.
+ */
 async function copyRawUrl(button: HTMLElement): Promise<void> {
   const url = button.dataset['url'];
   if (!url) return;

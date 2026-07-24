@@ -1,9 +1,30 @@
+# Dependencies
 node_modules/
+
+# Astro and build caches
+.astro/
 dist/
-.DS_Store
-*.local
+
+# Test and verification artifacts
+test-results/
+coverage/
+
+# Temporary source fixtures — used by documentation-lint tests and excluded
+# from the application build. These are created and removed by
+# tests/lint-docs.test.ts at runtime.
+src/__fixtures__/
+
+# Local environment files
 .env
 .env.*
 !.env.example
+
+# IDE and operating-system files
+.DS_Store
+Thumbs.db
+
+# Local Codex / editor prompts
+*.local
 TODO.local.md
+PROMPT-*.local.md
 PROMPT-PORT-EXTENSION-DASHBOARD.local.md

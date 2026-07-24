@@ -1,10 +1,37 @@
+/**
+ * Protects the IndexedDB storage layer for settings, favorites, and consent
+ * persistence across Astro view transitions.
+ *
+ * IndexedDB is only available in browser-like environments (happy-dom, jsdom).
+ * Node.js does not provide indexedDB, so these tests are conditionally
+ * skipped — the runtime guard `hasIndexedDB` detects the absence early.
+ *
+ * Related module: src/services/db.ts
+ */
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { getSettings, saveSettings, getFavorites, addFavorite, removeFavorite, resetAllData } from "../src/services/db";
+import {
+  getSettings,
+  saveSettings,
+  getFavorites,
+  addFavorite,
+  removeFavorite,
+  resetAllData,
+} from "../src/services/db";
 import type { AppSettings } from "../src/types/storage";
 import { DEFAULT_SETTINGS } from "../src/types/storage";
 
+/**
+ * jsdom and Node 24 do not ship a real IndexedDB implementation.
+ * Vitest's happy-dom also omits it. This guard skips the entire suite
+ * rather than failing with opaque "indexedDB is not defined" errors.
+ */
 const hasIndexedDB = typeof indexedDB !== "undefined";
 
+/**
+ * Verifies that getSettings / saveSettings / getFavorites / addFavorite /
+ * removeFavorite read and write through the IndexedDB store correctly.
+ * Uses resetAllData in beforeAll/afterAll to isolate test runs.
+ */
 describe.runIf(hasIndexedDB)("IndexedDB storage", () => {
   beforeAll(async () => {
     await resetAllData();
@@ -39,6 +66,11 @@ describe.runIf(hasIndexedDB)("IndexedDB storage", () => {
     expect(after.has(id)).toBe(false);
   });
 
+  /**
+   * Regression: addFavorite must not create duplicate entries.
+   * The underlying store uses a Set under `db.favorites` — calling
+   * addFavorite twice with the same id should be idempotent.
+   */
   it("deduplicates favorites", async () => {
     const id = "st-fav-dup";
     await addFavorite(id);
@@ -53,6 +85,10 @@ describe.runIf(hasIndexedDB)("IndexedDB storage", () => {
   });
 });
 
+/**
+ * Placeholder suite that documents why the real tests are skipped.
+ * Without it, Vitest would report 0 tests for the file, hiding the skip.
+ */
 describe.runIf(!hasIndexedDB)("IndexedDB (skipped)", () => {
   it("requires browser environment with IndexedDB", () => {
     expect(true).toBe(true);

@@ -11,6 +11,7 @@ interfere with audio playback — the visualizer is purely cosmetic.
 /**
  * Resize a canvas backing store to match its CSS display size.
  * Accounts for devicePixelRatio.
+ * @param canvas - The canvas element to resize.
  */
 export function resizeCanvasToDisplaySize(canvas: HTMLCanvasElement): void {
   const ratio = window.devicePixelRatio || 1;
@@ -26,6 +27,8 @@ export function resizeCanvasToDisplaySize(canvas: HTMLCanvasElement): void {
 /**
  * Get a 2D rendering context from a canvas element.
  * Returns null when canvas is null or getContext('2d') fails.
+ * @param canvas - The canvas element, or null.
+ * @returns The 2D context, or null.
  */
 export function getCtx(canvas: HTMLCanvasElement | null): CanvasRenderingContext2D | null {
   if (!canvas) return null;
@@ -35,6 +38,9 @@ export function getCtx(canvas: HTMLCanvasElement | null): CanvasRenderingContext
 /**
  * Draw frequency bars on a canvas context.
  * Falls back to static bars when all data values are zero.
+ * @param c - The canvas rendering context.
+ * @param dataArray - Frequency data from an AnalyserNode.
+ * @param bufferLength - The number of frequency bins.
  * @param growFromTop - when true, bars grow downward from the top edge.
  */
 export function drawBars(
@@ -68,7 +74,10 @@ export function drawBars(
   }
 }
 
-/** Draw a static radial placeholder on the side visualiser canvas. */
+/**
+ * Draw a static radial placeholder on the side visualiser canvas.
+ * @param c - The canvas rendering context.
+ */
 export function drawSideStatic(c: CanvasRenderingContext2D): void {
   const w = c.canvas.width;
   const h = c.canvas.height;
@@ -91,6 +100,8 @@ export function drawSideStatic(c: CanvasRenderingContext2D): void {
 /**
  * Draw a radial frequency visualiser on a canvas context.
  * Falls back to drawSideStatic when all data values are zero.
+ * @param c - The canvas rendering context.
+ * @param dataArray - Frequency data from an AnalyserNode.
  */
 export function drawSide(c: CanvasRenderingContext2D, dataArray: Uint8Array): void {
   const w = c.canvas.width;
@@ -126,6 +137,7 @@ export function drawSide(c: CanvasRenderingContext2D, dataArray: Uint8Array): vo
 /**
  * Draw a static placeholder with short horizontal bars.
  * Used when no frequency data is available (paused, loading, error).
+ * @param c - The canvas rendering context.
  * @param growFromTop - when true, bars sit at the top edge.
  */
 export function drawStaticCanvas(c: CanvasRenderingContext2D, growFromTop = false): void {

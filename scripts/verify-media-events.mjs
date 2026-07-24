@@ -1,3 +1,27 @@
+/**
+ * Browser-level media-event UI verification.
+ *
+ * Requires: `npm run serve` on port 4322.
+ *
+ * Environment: headless Chromium via Playwright.
+ *
+ * Coverage:
+ *   - Clicking play shows spinner (not pause icon) while loading
+ *   - Large dashboard player shows "Loading..." text
+ *   - After playing event fires, both row and large player show pause icon
+ *   - Compact player syncs to pause icon after Astro navigation
+ *   - Pause icon restores to play icon on click
+ *   - Failed endpoint (all routes aborted) shows warning icon
+ *   - Active row retains orange selection (not green)
+ *   - No duplicate MediaElementSourceNode errors in console
+ *
+ * Fixtures: two stations — one that eventually plays (tone with 1400 ms
+ * delay to test loading state), one that always fails (all endpoints
+ * aborted).
+ *
+ * Related source: src/services/player.ts, src/scripts/app.ts,
+ * src/scripts/dashboard.ts, src/shared/dom.ts
+ */
 import { createHash } from "node:crypto";
 import { chromium } from "playwright";
 
@@ -6,6 +30,10 @@ const CATALOG_URL = "https://raw.githubusercontent.com/radiova-app/radiova-stati
 const PASS = "\x1b[32mPASS\x1b[0m";
 const FAIL = "\x1b[31mFAIL\x1b[0m";
 
+/**
+ * Two stations: one WAV that loads with a 1400 ms delay, one MP3 where
+ * both endpoints are aborted to simulate a completely broken stream.
+ */
 const m3u = `#EXTM3U
 #EXTINF:-1 tvg-id="slow-test" radio-endpoint-id="slow-main" radio-codec="wav" radio-bitrate="128" group-title="global",Slow Test Station
 ${BASE_URL}/test-tone.wav
@@ -17,6 +45,15 @@ ${BASE_URL}/broken-two.mp3
 
 const sha256 = createHash("sha256").update(m3u).digest("hex");
 
+/**
+ * Generate a 440 Hz mono WAV tone.
+ * The 5-second duration allows a 1400 ms network delay before playback
+ * actually starts, giving the UI time to show the loading spinner.
+ *
+ * @param {number} seconds - Duration of the tone.
+ * @param {number} sampleRate - Samples per second.
+ * @returns {Buffer} Complete WAV file as a Node.js Buffer.
+ */
 function wavTone(seconds = 5, sampleRate = 44100) {
   const samples = seconds * sampleRate;
   const dataSize = samples * 2;
@@ -41,14 +78,33 @@ function wavTone(seconds = 5, sampleRate = 44100) {
   return buffer;
 }
 
+/**
+ * Check whether an SVG icon markup string represents the pause icon.
+ * The pause icon contains two vertical bars at x=6 and x=14.
+ *
+ * @param {string} markup - Inner HTML of the icon element.
+ * @returns {boolean}
+ */
 function hasPauseIcon(markup) {
   return markup.includes('x="6"') && markup.includes('x="14"');
 }
 
+/**
+ * Check whether an SVG icon markup string represents the loading spinner.
+ *
+ * @param {string} markup - Inner HTML of the icon element.
+ * @returns {boolean}
+ */
 function hasSpinner(markup) {
   return markup.includes("loading-spinner");
 }
 
+/**
+ * Check whether an SVG icon markup string represents the warning icon.
+ *
+ * @param {string} markup - Inner HTML of the icon element.
+ * @returns {boolean}
+ */
 function hasWarning(markup) {
   return markup.includes("warning-icon");
 }

@@ -19,6 +19,8 @@ export interface LevelSample {
 /**
  * Clamp a level value to the [0, 1] range.
  * Non-finite values return 0.
+ * @param value - The raw level value.
+ * @returns The clamped value in [0, 1].
  */
 export function clampLevel(value: number): number {
   if (!Number.isFinite(value)) return 0;
@@ -28,6 +30,8 @@ export function clampLevel(value: number): number {
 /**
  * Calculate RMS and peak from a Uint8Array of time-domain data.
  * Values are normalised from [0..255] to [-1..1] before calculation.
+ * @param dataArray - Raw time-domain analyser data.
+ * @returns RMS and peak levels.
  */
 export function calculateLevelFromTimeDomainData(dataArray: Uint8Array): LevelSample {
   if (dataArray.length === 0) return { rms: 0, peak: 0 };
@@ -48,6 +52,9 @@ export function calculateLevelFromTimeDomainData(dataArray: Uint8Array): LevelSa
 /**
  * Smooth a level value toward a target using attack/release factors.
  * Rising values use 0.55 (fast attack), falling use 0.12 (slow release).
+ * @param current - The current smoothed level.
+ * @param target - The target level to approach.
+ * @returns The new smoothed level.
  */
 export function smoothLevel(current: number, target: number): number {
   const clampedCurrent = clampLevel(current);
@@ -56,7 +63,11 @@ export function smoothLevel(current: number, target: number): number {
   return clampLevel(clampedCurrent + (clampedTarget - clampedCurrent) * factor);
 }
 
-/** Return the maximum value in a Uint8Array. */
+/**
+ * Return the maximum value in a Uint8Array.
+ * @param dataArray - The data array to scan.
+ * @returns The maximum byte value.
+ */
 export function maxBin(dataArray: Uint8Array): number {
   let max = 0;
   for (const value of dataArray) {
@@ -68,6 +79,8 @@ export function maxBin(dataArray: Uint8Array): number {
 /**
  * Compute the target meter width from a LevelSample.
  * Weights RMS by 2.4 and peak by 0.72, then takes the max.
+ * @param sample - The RMS/peak sample.
+ * @returns The target level for meter display.
  */
 export function meterTarget(sample: LevelSample): number {
   return clampLevel(Math.max(sample.rms * 2.4, sample.peak * 0.72));
@@ -76,6 +89,8 @@ export function meterTarget(sample: LevelSample): number {
 /**
  * Read time-domain data from an AnalyserNode and return RMS/peak.
  * Returns zero levels when analyser is null.
+ * @param analyser - The Web Audio AnalyserNode, or null.
+ * @returns The RMS/peak sample.
  */
 export function readAnalyserLevel(analyser: AnalyserNode | null): LevelSample {
   if (!analyser) return { rms: 0, peak: 0 };

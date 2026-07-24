@@ -1,3 +1,27 @@
+/**
+ * Browser-level visualizer verification.
+ *
+ * Requires: `npm run serve` on port 4322.
+ *
+ * Environment: headless Chromium via Playwright.
+ *
+ * Coverage:
+ *   - Stereo frequency analysers generate distinct left/right meter values
+ *   - RAF loop runs while playing, stops on pause, resumes on play
+ *   - Station switch keeps one MediaElementAudioSourceNode
+ *   - Route navigation does not interrupt audio
+ *   - Route return rebinds canvases and resumes visualizer
+ *   - Browser back/forward preserves the audio graph
+ *   - CORS mode is set to anonymous
+ *   - No duplicate source or RAF errors
+ *
+ * Audio fixtures: two stereo WAV tones at different frequencies (440/880 Hz
+ * and 523/1046 Hz) with different left/right amplitudes to produce measurable
+ * stereo separation.
+ *
+ * Related source: src/scripts/equalizer.ts, src/services/audio-graph.ts,
+ * src/visualizer/canvas-renderer.ts
+ */
 import { createHash } from "node:crypto";
 import { chromium } from "playwright";
 
@@ -16,6 +40,19 @@ ${BASE_URL}/visualizer-tone-b.wav
 `;
 const sha256 = createHash("sha256").update(m3u).digest("hex");
 
+/**
+ * Generate a stereo WAV tone at 16-bit / 44100 Hz.
+ * Left and right channels have independent frequencies and amplitudes
+ * so the visualizer can detect stereo separation.
+ *
+ * @param {number} leftHz - Left channel frequency.
+ * @param {number} rightHz - Right channel frequency.
+ * @param {number} leftAmp - Left channel amplitude (0–1).
+ * @param {number} rightAmp - Right channel amplitude (0–1).
+ * @param {number} seconds - Duration of the tone.
+ * @param {number} sampleRate - Samples per second.
+ * @returns {Buffer} Complete WAV file (16-bit stereo).
+ */
 function wavTone(leftHz, rightHz, leftAmp = 0.37, rightAmp = 0.21, seconds = 8, sampleRate = 44100) {
   const samples = seconds * sampleRate;
   const dataSize = samples * 4;
@@ -42,6 +79,12 @@ function wavTone(leftHz, rightHz, leftAmp = 0.37, rightAmp = 0.21, seconds = 8, 
   return buffer;
 }
 
+/**
+ * Intercept all catalog and stream requests with deterministic local
+ * stereo WAV tones. The real radiova-stations repository is never hit.
+ *
+ * @param {import("@playwright/test").Page} page - Active browser page.
+ */
 async function installRoutes(page) {
   await page.route(`${CATALOG_URL}/generated/playlists-manifest.json`, async (route) => {
     await route.fulfill({
@@ -84,6 +127,11 @@ async function installRoutes(page) {
   });
 }
 
+/**
+ * Completely wipe all browser storage state for a clean test start.
+ *
+ * @param {import("@playwright/test").BrowserContext} context - Playwright context.
+ */
 async function clearSite(context) {
   await context.clearCookies();
   const page = await context.newPage();
@@ -109,6 +157,14 @@ async function clearSite(context) {
   await page.close();
 }
 
+/**
+ * Wait until the visualizer debug payload reports active animation and
+ * all three canvas types (top, bottom, side) show non-zero data.
+ * Returns the debug state for assertion.
+ *
+ * @param {import("@playwright/test").Page} page - Active browser page.
+ * @returns {Promise<object>} The __radiovaVisualizerDebug payload.
+ */
 async function waitForMovingVisualizer(page) {
   await page.waitForFunction(() => {
     const debug = window.__radiovaVisualizerDebug;
@@ -125,6 +181,13 @@ async function waitForMovingVisualizer(page) {
   return page.evaluate(() => window.__radiovaVisualizerDebug);
 }
 
+/**
+ * Wait until both meter widths decay below 0.05 (close to zero),
+ * indicating the pause decay animation has finished.
+ *
+ * @param {import("@playwright/test").Page} page - Active browser page.
+ * @returns {Promise<object>} The __radiovaVisualizerDebug payload.
+ */
 async function waitForPausedMeters(page) {
   await page.waitForFunction(() => {
     const debug = window.__radiovaVisualizerDebug;

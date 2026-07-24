@@ -1,6 +1,10 @@
 import type { Release } from "../types/release";
 import { SITE } from "../config/site";
 
+/**
+ * Fetch the latest release info from the releases repository.
+ * @returns The Release object, or null on failure.
+ */
 export async function fetchLatestRelease(): Promise<Release | null> {
   try {
     const response = await fetch(SITE.releasesUrl);

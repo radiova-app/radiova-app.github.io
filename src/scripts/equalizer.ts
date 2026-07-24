@@ -409,6 +409,8 @@ function bindTeardown(): void {
 /**
  * Create a standalone side (radial) visualiser handle.
  * The side visualiser mirrors analyser state without starting an extra RAF loop.
+ * @param canvasEl - The canvas element for radial rendering.
+ * @returns A SideVisualizerHandle for lifecycle control.
  */
 export function createSideVisualizer(canvasEl: HTMLCanvasElement): SideVisualizerHandle {
   views.sideCanvas = canvasEl;
@@ -441,6 +443,9 @@ export function createSideVisualizer(canvasEl: HTMLCanvasElement): SideVisualize
  * Create the main equalizer visualiser.
  * Binds two canvas elements for L/R bars, starts the RAF loop,
  * and returns a handle for lifecycle management.
+ * @param left - The left (top) frequency bar canvas.
+ * @param right - The right (bottom) frequency bar canvas.
+ * @returns An EqualizerHandle for lifecycle control.
  */
 export function createEqualizer(
   left: HTMLCanvasElement,

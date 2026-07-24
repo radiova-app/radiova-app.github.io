@@ -1,3 +1,4 @@
+/** A single stream endpoint for a radio station. */
 export interface StationEndpoint {
   id: string;
   url: string;
@@ -5,6 +6,7 @@ export interface StationEndpoint {
   bitrate?: number;
 }
 
+/** A radio station with metadata and stream endpoints. */
 export interface Station {
   id: string;
   name: string;
@@ -17,10 +19,12 @@ export interface Station {
   locale?: string;
 }
 
+/** A Station that is currently playing, with a reference to the active endpoint. */
 export interface StationWithStream extends Station {
   currentEndpointId?: string;
 }
 
+/** A single entry in the playlist manifest describing one locale's playlist. */
 export interface PlaylistManifestEntry {
   path: string;
   stationCount: number;
@@ -30,6 +34,7 @@ export interface PlaylistManifestEntry {
   source: string;
 }
 
+/** The full playlist manifest fetched from the remote catalog. */
 export interface PlaylistManifest {
   schemaVersion: number;
   generatedAt: string;
@@ -37,6 +42,7 @@ export interface PlaylistManifest {
   playlists: PlaylistManifestEntry[];
 }
 
+/** A playlist stored in the IndexedDB cache. */
 export interface CachedPlaylist {
   sha256: string;
   stations: Station[];

@@ -64,6 +64,7 @@ export function ensureAudioContext(): AudioContext | null {
 /**
  * Resume the shared AudioContext if suspended.
  * Safe to call even when context is null or already running.
+ * @returns A promise that resolves when the context resumes.
  */
 export function resumeAudioContext(): Promise<void> {
   const ctx = graph.audioCtx;
@@ -76,6 +77,7 @@ export function resumeAudioContext(): Promise<void> {
 /**
  * Build the full audio graph (source -> gain -> destination + splitter -> analysers).
  * Must be called once per media element lifetime.
+ * @param audioEl - The HTMLAudioElement to connect.
  * @returns true when the graph is fully connected.
  */
 export function ensureGraph(audioEl: HTMLAudioElement): boolean {

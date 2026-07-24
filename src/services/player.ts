@@ -171,17 +171,26 @@ function saveMuted(m: boolean): void {
   }
 }
 
-/** Return the current PlayerState. */
+/**
+ * Return the current PlayerState.
+ * @returns The current player state.
+ */
 export function getState(): PlayerState {
   return currentState;
 }
 
-/** Return the currently loaded stream URL. */
+/**
+ * Return the currently loaded stream URL.
+ * @returns The current stream URL string.
+ */
 export function getCurrentUrl(): string {
   return currentUrl;
 }
 
-/** Build a SharedPlayerState snapshot from the current values. */
+/**
+ * Build a SharedPlayerState snapshot from the current values.
+ * @returns The current shared player state snapshot.
+ */
 export function getSharedPlayerState(): SharedPlayerState {
   return {
     station: { ...currentStationInfo },
@@ -197,7 +206,8 @@ export function getSharedPlayerState(): SharedPlayerState {
 
 /**
  * Subscribe to PlayerState transitions.
- * @returns unsubscribe function.
+ * @param fn - Callback receiving the new PlayerState.
+ * @returns Unsubscribe function.
  */
 export function onStateChange(fn: (state: PlayerState) => void): () => void {
   stateListeners.push(fn);
@@ -208,7 +218,8 @@ export function onStateChange(fn: (state: PlayerState) => void): () => void {
 
 /**
  * Subscribe to playback error messages.
- * @returns unsubscribe function.
+ * @param fn - Callback receiving the error message string.
+ * @returns Unsubscribe function.
  */
 export function onError(fn: (msg: string) => void): () => void {
   errorListeners.push(fn);
@@ -219,7 +230,8 @@ export function onError(fn: (msg: string) => void): () => void {
 
 /**
  * Subscribe to full SharedPlayerState changes (state, volume, mute, station).
- * @returns unsubscribe function.
+ * @param fn - Callback receiving the new SharedPlayerState.
+ * @returns Unsubscribe function.
  */
 export function onChange(fn: (state: SharedPlayerState) => void): () => void {
   changeListeners.push(fn);
@@ -228,7 +240,10 @@ export function onChange(fn: (state: SharedPlayerState) => void): () => void {
   };
 }
 
-/** Return the shared persistent HTMLAudioElement. */
+/**
+ * Return the shared persistent HTMLAudioElement.
+ * @returns The audio element, or null before initialisation.
+ */
 export function getAudioElement(): HTMLAudioElement | null {
   return audio;
 }
@@ -236,6 +251,7 @@ export function getAudioElement(): HTMLAudioElement | null {
 /**
  * Start or switch playback to a stream URL.
  * Upgrades http:// to https:// when the page is served over HTTPS.
+ * @param url - The stream URL to play.
  */
 export function play(url: string): void {
   const el = getAudio();
@@ -302,13 +318,19 @@ export function stop(): void {
   setState("idle");
 }
 
-/** Return the current volume level [0..1]. */
+/**
+ * Return the current volume level [0..1].
+ * @returns The current volume.
+ */
 export function getVolume(): number {
   if (!audio) return loadVolume();
   return audio.volume;
 }
 
-/** Set the volume level [0..1] and persist it. */
+/**
+ * Set the volume level [0..1] and persist it.
+ * @param v - The new volume value.
+ */
 export function setVolume(v: number): void {
   const el = getAudio();
   const clamped = Math.max(0, Math.min(1, v));
@@ -318,13 +340,19 @@ export function setVolume(v: number): void {
   document.dispatchEvent(new CustomEvent(EVENTS.VOLUME_CHANGED, { detail: clamped }));
 }
 
-/** Return whether the audio element is muted. */
+/**
+ * Return whether the audio element is muted.
+ * @returns true if muted.
+ */
 export function isMuted(): boolean {
   if (!audio) return loadMuted();
   return audio.muted;
 }
 
-/** Mute or unmute the audio element and persist the choice. */
+/**
+ * Mute or unmute the audio element and persist the choice.
+ * @param m - true to mute, false to unmute.
+ */
 export function setMuted(m: boolean): void {
   const el = getAudio();
   el.muted = m;
@@ -338,23 +366,37 @@ export function toggleMute(): void {
   setMuted(!isMuted());
 }
 
-/** Return a copy of the current station info. */
+/**
+ * Return a copy of the current station info.
+ * @returns A copy of the current PlayerStationInfo.
+ */
 export function getStationInfo(): PlayerStationInfo {
   return { ...currentStationInfo };
 }
 
-/** Set the currently active station info and notify listeners. */
+/**
+ * Set the currently active station info and notify listeners.
+ * @param info - The new station info.
+ */
 export function setStationInfo(info: PlayerStationInfo): void {
   currentStationInfo = { ...info };
   notifyChange();
 }
 
-/** Force-set the player state and optional error message. */
+/**
+ * Force-set the player state and optional error message.
+ * @param status - The new PlayerState.
+ * @param errorMessage - Optional error message for error state.
+ */
 export function setPlaybackStatus(status: PlayerState, errorMessage: string | null = null): void {
   setState(status, errorMessage);
 }
 
-/** Return the human-readable label for a given PlayerState in the current UI language. */
+/**
+ * Return the human-readable label for a given PlayerState in the current UI language.
+ * @param status - The player state to label.
+ * @returns A localised status label string.
+ */
 export function getPlaybackStatusLabel(status: PlayerState): string {
   const docLang = typeof document === "undefined" ? "en" : document.documentElement.lang;
   const lang = docLang === "uk" || docLang === "de" ? docLang : "en";

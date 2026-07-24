@@ -1,3 +1,16 @@
+/**
+ * Quick final smoke test run after all other verification scripts pass.
+ *
+ * Requires: `npm run serve` on port 4322 (with consent pre-accepted).
+ *
+ * Covers: sidebar toggle on every page, persistent audio element across
+ * navigation, equalizer canvas rebinding, language switcher active state,
+ * and browser back/forward locale preservation.
+ *
+ * Environment: headless Chromium via Playwright.
+ *
+ * Exit: code 0 on all checks pass, 1 on any failure.
+ */
 import { chromium } from 'playwright';
 
 const BASE_URL = 'http://localhost:4322';

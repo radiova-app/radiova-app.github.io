@@ -10,10 +10,20 @@ const MANIFEST_PATH = 'generated/playlists-manifest.json';
 let cachedManifest: PlaylistManifest | null = null;
 let manifestPromise: Promise<PlaylistManifest | null> | null = null;
 
+/**
+ * Return the base URL for station catalog files.
+ * @returns The catalog base URL.
+ */
 export function getCatalogBase(): string {
   return CATALOG_BASE;
 }
 
+/**
+ * Return the human-readable label for a playlist locale in the given language.
+ * @param locale - The playlist locale key.
+ * @param lang - The target language code.
+ * @returns The localised label.
+ */
 export function getPlaylistLabel(locale: PlaylistLocale, lang: string): string {
   const labels = PLAYLIST_LABELS[locale];
   if (lang === 'uk') return labels.uk;
@@ -21,6 +31,11 @@ export function getPlaylistLabel(locale: PlaylistLocale, lang: string): string {
   return labels.en;
 }
 
+/**
+ * Fetch the playlist manifest from the remote catalog.
+ * Results are cached in memory for the session.
+ * @returns The manifest, or null on failure.
+ */
 export async function fetchManifest(): Promise<PlaylistManifest | null> {
   if (cachedManifest) return cachedManifest;
   if (manifestPromise) return manifestPromise;
@@ -42,11 +57,24 @@ export async function fetchManifest(): Promise<PlaylistManifest | null> {
   return manifestPromise;
 }
 
+/**
+ * Look up a manifest entry for a given locale.
+ * @param manifest - The playlist manifest.
+ * @param locale - The locale key to look up.
+ * @returns The manifest entry, or undefined.
+ */
 export function getPlaylistEntry(manifest: PlaylistManifest, locale: string): PlaylistManifestEntry | undefined {
   const path = `playlists/${locale}.m3u`;
   return manifest.playlists.find((p) => p.path === path);
 }
 
+/**
+ * Fetch and validate a playlist M3U from the remote catalog.
+ * Optionally verifies the SHA-256 hash of the content.
+ * @param locale - The playlist locale key.
+ * @param sha256 - Optional expected SHA-256 hash.
+ * @returns Array of stations, or null on failure.
+ */
 export async function fetchPlaylist(locale: string, sha256?: string): Promise<Station[] | null> {
   try {
     const url = `${CATALOG_BASE}/playlists/${locale}.m3u`;
@@ -69,6 +97,12 @@ export async function fetchPlaylist(locale: string, sha256?: string): Promise<St
   }
 }
 
+/**
+ * Load stations for a locale with cache-aware logic.
+ * Returns cached data when the SHA-256 matches and falls back to cache on fetch failure.
+ * @param locale - The playlist locale key.
+ * @returns An object with stations and a fromCache flag.
+ */
 export async function loadPlaylist(locale: string): Promise<{ stations: Station[]; fromCache: boolean }> {
   const cached = await getCachedPlaylist(locale);
 

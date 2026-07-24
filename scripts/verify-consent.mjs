@@ -1,3 +1,28 @@
+/**
+ * Browser-level consent gate verification.
+ *
+ * Requires: `npm run serve` (or any HTTP server on port 4322 serving
+ * the built dist/ directory).
+ *
+ * Environment: headless Chromium via Playwright.
+ *
+ * Coverage:
+ *   - Modal rendering (two decision buttons, centred heading, no Escape
+ *     dismissal, no backdrop dismissal)
+ *   - Pre-consent language switching (locale URL, modal text, keeps gate open)
+ *   - Blocked features before consent (no IndexedDB, no SW, no stream)
+ *   - Private mode (station list loads, no decline flag stored)
+ *   - Full accept flow (versioned consent record, stream plays, state persists)
+ *   - Consent version bump reopens the gate
+ *   - Withdrawal clears all persisted data and returns to gate
+ *   - English and German locale modals
+ *   - Mobile modal fits viewport (no horizontal overflow)
+ *
+ * Cleanup: clearSite() erases all browser storage between test scenes.
+ * Exit: code 0 on all checks pass, 1 on any failure.
+ *
+ * Related source: src/services/consent.ts, src/scripts/app.ts
+ */
 import { createHash } from "node:crypto";
 import { chromium } from "playwright";
 
@@ -6,12 +31,24 @@ const CATALOG_URL = "https://raw.githubusercontent.com/radiova-app/radiova-stati
 const PASS = "\x1b[32mPASS\x1b[0m";
 const FAIL = "\x1b[31mFAIL\x1b[0m";
 
+/**
+ * Single station with one WAV endpoint served from the local dev server.
+ * The catalog routes are intercepted so no external network call occurs.
+ */
 const m3u = `#EXTM3U
 #EXTINF:-1 tvg-id="consent-test" radio-endpoint-id="consent-main" radio-codec="wav" radio-bitrate="128" group-title="global",Consent Test Station
 ${BASE_URL}/consent-tone.wav
 `;
 const sha256 = createHash("sha256").update(m3u).digest("hex");
 
+/**
+ * Generate a 440 Hz mono WAV tone at 16-bit / 44100 Hz.
+ * Used as the test audio stream that the consent-gated player must play.
+ *
+ * @param {number} seconds - Duration of the tone.
+ * @param {number} sampleRate - Samples per second.
+ * @returns {Buffer} Complete WAV file as a Node.js Buffer.
+ */
 function wavTone(seconds = 2, sampleRate = 44100) {
   const samples = seconds * sampleRate;
   const dataSize = samples * 2;
@@ -36,6 +73,13 @@ function wavTone(seconds = 2, sampleRate = 44100) {
   return buffer;
 }
 
+/**
+ * Intercept all catalog and stream requests with local fixtures.
+ * The real radiova-stations GitHub repository is never contacted.
+ *
+ * @param {import("@playwright/test").Page} page - Active browser page.
+ * @param {{ streamRequests: number }} counters - Mutable request counter.
+ */
 async function installRoutes(page, counters) {
   await page.route(`${CATALOG_URL}/generated/playlists-manifest.json`, async (route) => {
     await route.fulfill({
@@ -68,6 +112,13 @@ async function installRoutes(page, counters) {
   });
 }
 
+/**
+ * Install probing hooks that count IndexedDB open attempts, service
+ * worker register calls, and localStorage writes. The probe runs
+ * before any page script so it captures pre-consent behaviour.
+ *
+ * @param {import("@playwright/test").Page} page - Active browser page.
+ */
 async function instrument(page) {
   await page.addInitScript(() => {
     window.__radiovaConsentProbe = {
@@ -98,6 +149,13 @@ async function instrument(page) {
   });
 }
 
+/**
+ * Completely wipe all browser storage state: cookies, localStorage,
+ * sessionStorage, Cache Storage API, IndexedDB, and service worker
+ * registrations. This ensures a clean consent gate on each test scene.
+ *
+ * @param {import("@playwright/test").BrowserContext} context - Playwright context.
+ */
 async function clearSite(context) {
   await context.clearCookies();
   const page = await context.newPage();

@@ -475,12 +475,18 @@ const DICT: Record<Locale, Record<string, string>> = {
   },
 };
 
-/** Return the current runtime locale. */
+/**
+ * Return the current runtime locale.
+ * @returns The current Locale.
+ */
 export function getLocale(): Locale {
   return currentLocale;
 }
 
-/** Set the runtime locale and persist to localStorage if consent allows. */
+/**
+ * Set the runtime locale and persist to localStorage if consent allows.
+ * @param locale - The new locale to apply.
+ */
 export function setLocale(locale: Locale): void {
   currentLocale = locale;
   if (!hasConsent('preferences')) return;
@@ -494,6 +500,7 @@ export function setLocale(locale: Locale): void {
 /**
  * Initialise locale from document lang attribute or persisted preference.
  * Should be called once during app bootstrap.
+ * @returns The resolved Locale.
  */
 export function loadLocale(): Locale {
   try {
@@ -519,6 +526,9 @@ export function loadLocale(): Locale {
  * Translate a key using the current locale dictionary.
  * Falls back to English, then to the key itself.
  * Supports interpolated {param} placeholders.
+ * @param key - The translation key.
+ * @param params - Optional interpolation parameters.
+ * @returns The translated string.
  */
 export function t(key: string, params?: Record<string, string | number>): string {
   const dict = DICT[currentLocale];
@@ -537,6 +547,7 @@ export function t(key: string, params?: Record<string, string | number>): string
 /**
  * Apply translations to all DOM elements with data-i18n,
  * data-i18n-placeholder, or data-i18n-title attributes.
+ * @param root - The root element to scope the search (default: document).
  */
 export function applyI18n(root: ParentNode = document): void {
   root.querySelectorAll('[data-i18n]').forEach((el) => {

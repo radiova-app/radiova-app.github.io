@@ -1,3 +1,22 @@
+/**
+ * Structural integrity and regression tests for the Radiova static site.
+ *
+ * Rather than importing and calling source modules (which would require
+ * a full ts/jsdom environment), these tests read the raw .astro, .ts, and
+ * .scss source files as strings and assert on class names, function calls,
+ * and markup patterns. This approach:
+ *
+ *   - Detects accidental removal or renaming of key CSS classes.
+ *   - Detects broken cross-module contracts (e.g., event names, IDs).
+ *   - Requires zero module compilation or DOM simulation.
+ *   - Fails early in CI when a file or reference is missing.
+ *
+ * Build-output tests (dist/ describe blocks) verify the production build
+ * actually renders expected elements. They depend on `npm run build`
+ * having been run first (Vitest does not auto-build).
+ *
+ * Related source: all files under src/, layouts/, public/.
+ */
 import { describe, it, expect } from "vitest";
 import { existsSync, readFileSync } from "fs";
 import { resolve } from "path";
@@ -12,6 +31,11 @@ function readFile(relative: string): string {
   return readFileSync(resolve(root, relative), "utf-8");
 }
 
+/**
+ * Verifies that all required config files, source directories, pages,
+ * services, scripts, and PWA assets exist. Missing files would break
+ * the build or the runtime UX.
+ */
 describe("site structure", () => {
   it("has required config files", () => {
     expect(pathExists("astro.config.mjs")).toBe(true);
@@ -124,6 +148,12 @@ describe("site structure", () => {
   });
 });
 
+/**
+ * The AppShell layout is the single shell wrapping all pages.
+ * It contains the sidebar navigation, header player, and language
+ * switcher. These tests verify that critical CSS classes and IDs
+ * survive edits to the Astro template.
+ */
 describe("AppShell layout", () => {
   const appShell = readFile("src/layouts/AppShell.astro");
 
@@ -258,6 +288,12 @@ describe("localized routes preserve locale", () => {
   });
 });
 
+/**
+ * The equalizer lifecycle spans page navigation: the Web Audio graph is
+ * created once and persists; only canvas references are rebound on route
+ * change. These assertions protect against destroying/recreating the graph
+ * on every navigation. See also `scripts/verify-visualizer.mjs`.
+ */
 describe("equalizer lifecycle", () => {
   const equalizer = readFile("src/scripts/equalizer.ts");
   const audioGraph = readFile("src/services/audio-graph.ts");
@@ -287,6 +323,11 @@ describe("equalizer lifecycle", () => {
     expect(equalizer).toContain("prefers-reduced-motion");
   });
 
+  /**
+   * Creating a second MediaElementAudioSourceNode for the same <audio>
+   * element throws an error in Chrome. The graph must guard with a
+   * null check so that the source is created only once.
+   */
   it("prevents duplicate MediaElementSource", () => {
     expect(audioGraph).toContain("if (!graph.source) graph.source = ctx.createMediaElementSource(audioEl)");
     expect(audioGraph.match(/createMediaElementSource\(audioEl\)/g)?.length).toBe(1);
@@ -307,6 +348,13 @@ describe("logo fallback", () => {
   });
 });
 
+/**
+ * The player service (src/services/player.ts) is the single authority for
+ * playback state. It maps native media events (loadstart, playing, pause,
+ * error, etc.) to the application state machine. These tests verify the
+ * event-to-state mapping is present and that state is not set from the
+ * play() promise (which is unreliable across browsers).
+ */
 describe("player service", () => {
   const player = readFile("src/services/player.ts");
 
@@ -336,6 +384,13 @@ describe("player service", () => {
     }
   });
 
+  /**
+   * Regression: HTMLMediaElement.play() returns a promise that resolves
+   * when playback begins, but some browsers resolve it before the media
+   * is actually audible. Relying on the promise to set "playing" would
+   * cause a false-positive UI state. The player must use the native
+   * "playing" event instead.
+   */
   it("does not set playing from play promise", () => {
     const playImpl = player.match(/export function play\([\s\S]+?\n\}/);
     expect(playImpl).not.toBeNull();
@@ -632,6 +687,11 @@ describe("player locations", () => {
     expect(homePage).toContain("dashboard-right-level-fill");
   });
 
+  /**
+   * The DOM order of controls within the dashboard player determines
+   * tab order. Play/Pause must come first (primary action), followed by
+   * Prev, Next, and Mute. Changing this order would degrade keyboard UX.
+   */
   it("controls order in home page: play/pause first, prev, next, mute", () => {
     const ctrlSection = homePage.slice(
       homePage.indexOf('class="controls"'),
@@ -649,6 +709,12 @@ describe("player locations", () => {
   });
 });
 
+/**
+ * The large dashboard player with equalizer canvases must only appear
+ * on the home page (/). Non-home pages (playlists, about, downloads,
+ * help, privacy) must not render it. The compact header player lives
+ * in AppShell and appears on all pages.
+ */
 describe("dashboard-player only on home pages", () => {
   const homePages = [
     "src/pages/index.astro",
@@ -686,6 +752,12 @@ describe("dashboard-player only on home pages", () => {
   }
 });
 
+/**
+ * The dashboard.ts script renders each station as a row with artwork,
+ * metadata chips, play/pause toggle, and a favourite star. These tests
+ * verify that the rendering code still references the expected CSS
+ * classes and event constants.
+ */
 describe("station row structure", () => {
   const dashboard = readFile("src/scripts/dashboard.ts");
 
@@ -734,6 +806,12 @@ describe("station row structure", () => {
   });
 });
 
+/**
+ * Station artwork URLs come from the M3U feed and may point to
+ * HTTP sources on an HTTPS page (mixed content), be unreachable, or
+ * return non-image content. The safeArtworkUrl helper must handle
+ * these cases and fall back to PLACEHOLDER_IMG.
+ */
 describe("safe artwork URL handling", () => {
   const dashboard = readFile("src/scripts/dashboard.ts");
   const app = readFile("src/scripts/app.ts");
@@ -766,6 +844,12 @@ describe("safe artwork URL handling", () => {
   });
 });
 
+/**
+ * Build output (dist/) tests verify that `npm run build` produces HTML
+ * with the correct structure. These tests depend on a prior build and
+ * should be run in CI after the build step. They are not unit tests but
+ * integration smoke tests for the Astro/vite pipeline.
+ */
 describe("build output structure", () => {
   it("home page has dashboard-player inside stations-main", () => {
     const html = readFile("dist/uk/index.html");
@@ -843,6 +927,11 @@ describe("build output structure", () => {
   });
 });
 
+/**
+ * The app.ts script attaches a dev-only diagnostics payload to
+ * window.__radiovaDiagnostics for real-world debugging. These tests
+ * verify that the logging hooks exist without triggering them.
+ */
 describe("diagnostic logging", () => {
   const app = readFile("src/scripts/app.ts");
 
@@ -860,6 +949,11 @@ describe("diagnostic logging", () => {
   });
 });
 
+/**
+ * Verifies that the production build (`npm run build`) produces HTML
+ * files for every expected route. A missing page indicates a broken
+ * Astro route or a failed build step.
+ */
 describe("production build", () => {
   it("builds to dist/ directory", () => {
     expect(pathExists("dist/index.html")).toBe(true);
@@ -878,6 +972,13 @@ describe("production build", () => {
   });
 });
 
+/**
+ * Astro View Transitions enable client-side navigation without full
+ * page reloads. The persistent audio element (<audio transition:persist>)
+ * survives across route changes. These tests protect the View Transitions
+ * contract: the audio element must be persisted, app.ts must be bundled
+ * as an inline import, and language-state update callbacks must exist.
+ */
 describe("View Transitions and persistent audio", () => {
   const appShell = readFile("src/layouts/AppShell.astro");
   const player = readFile("src/services/player.ts");
@@ -922,6 +1023,13 @@ describe("View Transitions and persistent audio", () => {
   });
 });
 
+/**
+ * The equalizer processes left and right audio channels independently
+ * using a ChannelSplitterNode. These tests verify that the stereo
+ * pipeline (splitter → separate analysers) is wired correctly and that
+ * the visualizer mode detect types (real-stereo, cors-blocked, paused)
+ * are handled.
+ */
 describe("stereo equalizer", () => {
   const eq = readFile("src/scripts/equalizer.ts");
   const graphFile = readFile("src/services/audio-graph.ts");
@@ -1082,6 +1190,14 @@ describe("service worker", () => {
   });
 });
 
+/**
+ * The consent gate blocks all interactive features until the user accepts
+ * or continues in privacy mode. These are structural assertions that the
+ * consent-related source files contain the required high-level patterns:
+ * category types, modal markup, disable guards, withdrawal cleanup, and
+ * i18n strings. Browser-level consent flow is verified by
+ * `scripts/verify-consent.mjs`.
+ */
 describe("privacy consent gate", () => {
   const consent = readFile("src/services/consent.ts");
   const appShell = readFile("src/layouts/AppShell.astro");
@@ -1197,6 +1313,12 @@ describe("privacy consent gate", () => {
   });
 });
 
+/**
+ * The compact player (header) must display a sensible empty state when
+ * no station has been selected: placeholder artwork, instructive subtitle,
+ * and disabled play button. After a station is selected, the artwork,
+ * title, and status update immediately.
+ */
 describe("compact player empty state", () => {
   const appShell = readFile("src/layouts/AppShell.astro");
   const app = readFile("src/scripts/app.ts");
@@ -1248,6 +1370,11 @@ describe("compact player empty state", () => {
   });
 });
 
+/**
+ * The sidebar toggle state persists across navigations via settings.
+ * The sidebar AbortController is replaced on each route change to
+ * prevent listener leaks during Astro view transitions.
+ */
 describe("sidebar rebinding lifecycle", () => {
   const appShell = readFile("src/layouts/AppShell.astro");
   const app = readFile("src/scripts/app.ts");
@@ -1278,6 +1405,12 @@ describe("sidebar rebinding lifecycle", () => {
   });
 });
 
+/**
+ * The AudioContext, its media source, and its channel splitter are created
+ * once and survive page navigation. Only canvas references (top/bottom/side)
+ * are rebound on route change. These tests protect the "graph outlives
+ * views" architectural rule — the most critical constraint of the equalizer.
+ */
 describe("persistent audio graph (equalizer refactor)", () => {
   const eq = readFile("src/scripts/equalizer.ts");
   const graphFile = readFile("src/services/audio-graph.ts");
@@ -1377,6 +1510,12 @@ describe("persistent audio graph (equalizer refactor)", () => {
   });
 });
 
+/**
+ * On the very first page load after a cold start, the app restores the
+ * last-played station from settings. The `restoredOnce` flag prevents
+ * this from happening again on subsequent route navigations (which would
+ * interrupt the user's current playback).
+ */
 describe("cold-start restore guards", () => {
   const app = readFile("src/scripts/app.ts");
 

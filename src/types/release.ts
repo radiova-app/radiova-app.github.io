@@ -1,3 +1,4 @@
+/** A downloadable release asset for a specific platform. */
 export interface ReleaseDownload {
   platform: string;
   url: string;
@@ -6,6 +7,7 @@ export interface ReleaseDownload {
   checksumType: string;
 }
 
+/** A software release with version metadata and platform downloads. */
 export interface Release {
   version: string;
   publishedAt: string;

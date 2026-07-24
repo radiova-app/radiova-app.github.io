@@ -67,7 +67,10 @@ const diagnostics: {
   },
 };
 
-/** True when the current route is the home page in any locale. */
+/**
+ * True when the current route is the home page in any locale.
+ * @returns true if the current path is root, /uk, or /de.
+ */
 function isHomePage(): boolean {
   const path = window.location.pathname.replace(/\/$/, "");
   return path === "" || path === "/" || path === "/uk" || path === "/de";
@@ -206,7 +209,10 @@ function persistPlayerState(): void {
   void saveSettings(settings);
 }
 
-/** React to player state changes: update UI, equaliser, stream timeout. */
+/**
+ * React to player state changes: update UI, equaliser, stream timeout.
+ * @param state - The new shared player state.
+ */
 function handlePlayerChange(state: SharedPlayerState): void {
   updateHeaderPlayer(state);
   updateDashboardPlayer(state);
@@ -235,7 +241,10 @@ function applyDesktopCollapse(): void {
 
 let domAbortController: AbortController | null = null;
 
-/** Attach event listeners for header player controls. */
+/**
+ * Attach event listeners for header player controls.
+ * @param signal - AbortSignal for cleanup on navigation.
+ */
 function bindHeaderPlayer(signal: AbortSignal): void {
   const headerLogo = $("header-station-logo");
   if (headerLogo) {
@@ -264,7 +273,10 @@ function bindHeaderPlayer(signal: AbortSignal): void {
   if (headerMute) headerMute.addEventListener("click", toggleMute, { signal });
 }
 
-/** Attach event listeners for dashboard player controls. */
+/**
+ * Attach event listeners for dashboard player controls.
+ * @param signal - AbortSignal for cleanup on navigation.
+ */
 function bindDashboardPlayer(signal: AbortSignal): void {
   const toggleBtn = $("dashboard-station-square");
   if (toggleBtn) {
@@ -490,7 +502,10 @@ function setupPlayerListeners(): void {
   });
 }
 
-/** Update the compact header player controls from player state. */
+/**
+ * Update the compact header player controls from player state.
+ * @param state - The current shared player state.
+ */
 function updateHeaderPlayer(state: SharedPlayerState): void {
   const hasStation = Boolean(state.station.stationId);
   const emptyTitle = t("player.noStation");
@@ -522,7 +537,10 @@ function updateHeaderPlayer(state: SharedPlayerState): void {
   if (!hasStation) setPlayerImage("header-station-image", PLACEHOLDER_IMG, emptyTitle, "empty header");
 }
 
-/** Update the full dashboard player section from player state. */
+/**
+ * Update the full dashboard player section from player state.
+ * @param state - The current shared player state.
+ */
 function updateDashboardPlayer(state: SharedPlayerState): void {
   const dp = $("dashboard-player");
   if (!dp) return;
@@ -562,7 +580,10 @@ function updateDashboardPlayer(state: SharedPlayerState): void {
   if (!state.station.stationId) setPlayerImage("dashboard-station-image", PLACEHOLDER_IMG, t("player.noStation"), "empty dashboard");
 }
 
-/** Sync the equaliser start/stop with the playback state. */
+/**
+ * Sync the equaliser start/stop with the playback state.
+ * @param state - The player state string.
+ */
 function updateEqualizer(state: string): void {
   const audioEl = getAudioElement();
   if (audioEl && equalizer) {
@@ -573,7 +594,13 @@ function updateEqualizer(state: string): void {
   }
 }
 
-/** Set a player image with onerror fallback to PLACEHOLDER_IMG. */
+/**
+ * Set a player image with onerror fallback to PLACEHOLDER_IMG.
+ * @param imgId - The DOM element ID of the image.
+ * @param src - The image source URL.
+ * @param alt - The alt text.
+ * @param context - Diagnostic label for error logging.
+ */
 function setPlayerImage(imgId: string, src: string, alt: string, context: string): void {
   const img = $(imgId) as HTMLImageElement | null;
   if (!img) return;
@@ -587,7 +614,10 @@ function setPlayerImage(imgId: string, src: string, alt: string, context: string
   img.style.display = "";
 }
 
-/** Update all player station image elements for a given station. */
+/**
+ * Update all player station image elements for a given station.
+ * @param station - The station to display.
+ */
 function setStationImages(station: Station): void {
   const logoUrl = safeArtworkUrl(station.logo, (msg) => { diagnostics.add(msg); });
 
@@ -611,6 +641,8 @@ function setStationImages(station: Station): void {
 /**
  * Select and start playing a station at the given endpoint index.
  * Falls back through endpoints on failure.
+ * @param station - The station to play.
+ * @param endpointIndex - The endpoint index to use (default 0).
  */
 function selectStation(station: Station, endpointIndex = 0): void {
   const ep = station.endpoints[endpointIndex];
@@ -688,7 +720,10 @@ function selectStation(station: Station, endpointIndex = 0): void {
   document.dispatchEvent(new CustomEvent(EVENTS.PLAYER_STATION_CHANGED, { detail: station.id }));
 }
 
-/** Update header and dashboard station title elements. */
+/**
+ * Update header and dashboard station title elements.
+ * @param station - The station to display.
+ */
 function updateStationInfo(station: Station): void {
   const headerTitle = $("header-station-title");
   if (headerTitle) headerTitle.textContent = station.name;
@@ -697,13 +732,20 @@ function updateStationInfo(station: Station): void {
   if (dashboardTitle) dashboardTitle.textContent = station.name;
 }
 
-/** Update stream selector buttons for both header and dashboard. */
+/**
+ * Update stream selector buttons for both header and dashboard.
+ * @param station - The station whose endpoints to list.
+ */
 function updateStreamSelector(station: Station): void {
   updateSelector("header-stream-selector", station);
   updateSelector("dashboard-streams", station);
 }
 
-/** Render stream selector buttons for a single element. */
+/**
+ * Render stream selector buttons for a single element.
+ * @param elId - The element ID to populate.
+ * @param station - The station whose endpoints to list.
+ */
 function updateSelector(elId: string, station: Station): void {
   const el = $(elId);
   if (!el) return;
@@ -732,7 +774,10 @@ function updateSelector(elId: string, station: Station): void {
     .join("");
 }
 
-/** Move to the next or previous station in the current station list. */
+/**
+ * Move to the next or previous station in the current station list.
+ * @param dir - Direction: 1 for next, -1 for previous.
+ */
 function navigateStation(dir: number): void {
   if (currentStations.length === 0) return;
   const idx = currentPlayId
@@ -818,7 +863,10 @@ function handlePlaybackError(): void {
   showStreamError("Unable to play this stream");
 }
 
-/** Render an inline stream error message with a retry button. */
+/**
+ * Render an inline stream error message with a retry button.
+ * @param msg - The error message to display.
+ */
 function showStreamError(msg: string): void {
   const status = $("update-status");
   if (!status) return;
@@ -867,7 +915,10 @@ function clearStreamTimeout(): void {
   streamTimeoutId = null;
 }
 
-/** Clear the timeout when a terminal or playing state is reached. */
+/**
+ * Clear the timeout when a terminal or playing state is reached.
+ * @param status - The current PlayerState.
+ */
 function updateStreamTimeout(status: PlayerState): void {
   if (status === "playing" || status === "paused" || status === "idle" || status === "error") {
     clearStreamTimeout();

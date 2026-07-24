@@ -181,7 +181,10 @@ function bindDashboardUI(): void {
   }
 }
 
-/** Load stations for a given playlist locale and render the list. */
+/**
+ * Load stations for a given playlist locale and render the list.
+ * @param locale - The playlist locale key.
+ */
 async function loadStations(locale: string): Promise<void> {
   showLoading(true);
   hideError();
@@ -241,7 +244,11 @@ function renderStationList(): void {
   updateStationCount();
 }
 
-/** Render a single station row as an HTML string. */
+/**
+ * Render a single station row as an HTML string.
+ * @param st - The station to render.
+ * @returns The HTML string for the station row.
+ */
 function renderStationRow(st: Station): string {
   const isSelected = currentPlayId === st.id;
   const rowStatus = isSelected ? playerState.status : "idle";
@@ -277,7 +284,11 @@ function renderStationRow(st: Station): string {
   </div>`;
 }
 
-/** Render pagination controls with ellipsis for large page counts. */
+/**
+ * Render pagination controls with ellipsis for large page counts.
+ * @param page - The current page index (0-based).
+ * @param total - Total number of pages.
+ */
 function renderPagination(page: number, total: number): void {
   const el = $("stations-pagination");
   if (!el) return;
@@ -315,7 +326,12 @@ function renderPagination(page: number, total: number): void {
   el.innerHTML = html;
 }
 
-/** Update the list footer with count display and page size selector. */
+/**
+ * Update the list footer with count display and page size selector.
+ * @param total - Total number of stations.
+ * @param start - Start index of the current page.
+ * @param end - End index of the current page.
+ */
 function renderListFooter(total: number, start: number, end: number): void {
   const footer = $("list-footer");
   const count = $("list-count");
@@ -330,12 +346,19 @@ function renderListFooter(total: number, start: number, end: number): void {
   if (sizeSelect) sizeSelect.value = String(pageSize);
 }
 
-/** Find a station by ID in the loaded station list. */
+/**
+ * Find a station by ID in the loaded station list.
+ * @param id - The station ID.
+ * @returns The Station, or undefined.
+ */
 function findStation(id: string): Station | undefined {
   return allStations.find((s) => s.id === id);
 }
 
-/** Dispatch STATION_SELECTED event to trigger playback. */
+/**
+ * Dispatch STATION_SELECTED event to trigger playback.
+ * @param st - The station to play.
+ */
 function playStation(st: Station): void {
   currentPlayId = st.id;
   document.dispatchEvent(new CustomEvent(EVENTS.STATION_SELECTED, { detail: st }));
@@ -349,7 +372,10 @@ function updateFavoritesTabVisibility(): void {
   }
 }
 
-/** Toggle a station's favourite status and re-render. */
+/**
+ * Toggle a station's favourite status and re-render.
+ * @param id - The station ID.
+ */
 async function toggleFav(id: string): Promise<void> {
   if (favoritesSet.has(id)) {
     favoritesSet.delete(id);
@@ -367,7 +393,10 @@ async function toggleFav(id: string): Promise<void> {
   }
 }
 
-/** Update the status display after playlist load. */
+/**
+ * Update the status display after playlist load.
+ * @param fromCache - true if the playlist was loaded from cache.
+ */
 function updateStatus(fromCache: boolean): void {
   const statusEl = $("update-status");
   if (!statusEl) return;
@@ -388,7 +417,10 @@ function updateStationCount(): void {
   el.textContent = t("filter.count", { count: allStations.length });
 }
 
-/** Show/hide the loading indicator. */
+/**
+ * Show/hide the loading indicator.
+ * @param show - true to show, false to hide.
+ */
 function showLoading(show: boolean): void {
   const el = $("loading-indicator");
   if (el) el.classList.toggle("is-hidden", !show);

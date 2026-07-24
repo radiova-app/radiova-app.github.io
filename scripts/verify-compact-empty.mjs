@@ -1,3 +1,22 @@
+/**
+ * Browser-level compact player empty-state verification.
+ *
+ * Requires: `npm run serve` on port 4322.
+ *
+ * Environment: headless Chromium via Playwright.
+ *
+ * Coverage:
+ *   - Placeholder artwork loads correctly with natural dimensions
+ *   - Ukrainian non-selected state shows localized "no station" text
+ *   - English and German non-selected states show correct translations
+ *   - Play button is aria-disabled when no station is selected
+ *   - After selecting a station, title, status, and artwork update
+ *   - No 404 assets when the player is in empty or selected state
+ *   - No horizontal overflow in any locale
+ *
+ * Related source: src/layouts/AppShell.astro, src/services/player.ts,
+ * src/services/i18n.ts
+ */
 import { createHash } from "node:crypto";
 import { chromium } from "playwright";
 
@@ -6,12 +25,23 @@ const CATALOG_URL = "https://raw.githubusercontent.com/radiova-app/radiova-stati
 const PASS = "\x1b[32mPASS\x1b[0m";
 const FAIL = "\x1b[31mFAIL\x1b[0m";
 
+/**
+ * Single station with one WAV endpoint, tvg-logo pointing to the local
+ * placeholder SVG so artwork loads without external network requests.
+ */
 const m3u = `#EXTM3U
 #EXTINF:-1 tvg-id="compact-test" radio-endpoint-id="compact-main" radio-codec="wav" radio-bitrate="128" group-title="global" tvg-logo="${BASE_URL}/assets/images/station-placeholder.svg",Compact Test Station
 ${BASE_URL}/compact-tone.wav
 `;
 const sha256 = createHash("sha256").update(m3u).digest("hex");
 
+/**
+ * Generate a 440 Hz mono WAV tone for the test station stream.
+ *
+ * @param {number} seconds - Duration of the tone.
+ * @param {number} sampleRate - Samples per second.
+ * @returns {Buffer} Complete WAV file as a Node.js Buffer.
+ */
 function wavTone(seconds = 2, sampleRate = 44100) {
   const samples = seconds * sampleRate;
   const dataSize = samples * 2;
@@ -36,6 +66,12 @@ function wavTone(seconds = 2, sampleRate = 44100) {
   return buffer;
 }
 
+/**
+ * Intercept all catalog and stream requests with deterministic local
+ * fixtures. No external network calls are made.
+ *
+ * @param {import("@playwright/test").Page} page - Active browser page.
+ */
 async function installRoutes(page) {
   await page.route(`${CATALOG_URL}/generated/playlists-manifest.json`, async (route) => {
     await route.fulfill({
@@ -67,6 +103,13 @@ async function installRoutes(page) {
   });
 }
 
+/**
+ * Clear all browser storage and set a pre-accepted consent record so
+ * we start with the gate bypassed and can inspect the empty player
+ * immediately.
+ *
+ * @param {import("@playwright/test").Page} page - Active browser page.
+ */
 async function clearState(page) {
   await page.evaluate(async () => {
     localStorage.clear();
@@ -84,6 +127,12 @@ async function clearState(page) {
   });
 }
 
+/**
+ * Read the current state of the compact player header elements.
+ *
+ * @param {import("@playwright/test").Page} page - Active browser page.
+ * @returns {Promise<{src: string, currentSrc: string, naturalWidth: number, title: string, status: string, ariaDisabled: string, overflow: boolean}>}
+ */
 async function inspectHeader(page) {
   return page.evaluate(() => {
     const image = document.getElementById("header-station-image");

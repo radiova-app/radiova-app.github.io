@@ -1,4 +1,7 @@
-/** Consent category used for granular storage checks. */
+/**
+ * Consent category used for granular storage checks.
+ * {@link hasConsent} checks these categories before accessing storage.
+ */
 export type ConsentCategory = "necessary" | "preferences" | "offline" | "diagnostics";
 
 /** Current consent state — immutable once decided. */
@@ -26,6 +29,7 @@ declare global {
   }
 }
 
+/** Current consent schema version. Bump to force re-consent on upgrade. */
 export const CONSENT_VERSION = 1;
 
 const STORAGE_KEY = "radiova-consent";
@@ -141,18 +145,28 @@ function persistAccepted(state: ConsentState): void {
   );
 }
 
-/** Return the current consent state snapshot. */
+/**
+ * Return the current consent state snapshot.
+ * @returns The current ConsentState.
+ */
 export function getConsentState(): ConsentState {
   return currentState;
 }
 
-/** Check whether a specific consent category is granted. */
+/**
+ * Check whether a specific consent category is granted.
+ * @param category - The consent category to check.
+ * @returns true when the category is granted.
+ */
 export function hasConsent(category: ConsentCategory): boolean {
   if (category === "necessary") return true;
   return currentState[category];
 }
 
-/** Return true when the user declined consent (privacy mode). */
+/**
+ * Return true when the user declined consent (privacy mode).
+ * @returns true if in privacy mode.
+ */
 export function isPrivacyMode(): boolean {
   return currentState.status === "declined";
 }
@@ -160,6 +174,7 @@ export function isPrivacyMode(): boolean {
 /**
  * Wait until the user has resolved the consent gate.
  * Resolves immediately if consent was already given or declined.
+ * @returns A promise that resolves with the final ConsentState.
  */
 export function whenConsentResolved(): Promise<ConsentState> {
   if (currentState.status !== "unknown") return Promise.resolve(currentState);
@@ -457,7 +472,10 @@ export async function withdrawConsent(): Promise<void> {
   currentState = unknownState();
 }
 
-/** Open the privacy settings dialog (review consent / withdraw). */
+/**
+ * Open the privacy settings dialog (review consent / withdraw).
+ * Creates a modal dialog and appends it to the document body.
+ */
 export function openPrivacySettings(): void {
   const text = COPY[locale()];
   const existing = document.getElementById("privacy-settings-dialog");

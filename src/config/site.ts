@@ -1,3 +1,4 @@
+/** Site-wide configuration constants. */
 export const SITE = {
   title: 'Radiova',
   description: 'Radiova – listen to radio from around the world',
@@ -12,6 +13,7 @@ export const SITE = {
   appDescription: 'Listen to radio stations from around the world',
 } as const;
 
+/** Navigation menu items with localised labels. */
 export const NAV = [
   { href: '/', label: 'Home', labelUk: 'Головна', labelDe: 'Start' },
   { href: '/playlists', label: 'Playlists', labelUk: 'Плейлисти', labelDe: 'Playlists' },
@@ -21,6 +23,7 @@ export const NAV = [
   { href: '/privacy', label: 'Privacy', labelUk: 'Конфіденційність', labelDe: 'Datenschutz' },
 ] as const;
 
+/** Playlist tab labels in all supported locales. */
 export const PLAYLIST_LABELS = {
   uk: { en: 'Ukrainian', uk: 'Українські', de: 'Ukrainisch' },
   en: { en: 'English', uk: 'Англійські', de: 'Englisch' },
@@ -30,4 +33,5 @@ export const PLAYLIST_LABELS = {
   favorites: { en: 'Favorites', uk: 'Улюблені', de: 'Favoriten' },
 } as const;
 
+/** Locale identifier used for playlist filtering. */
 export type PlaylistLocale = keyof typeof PLAYLIST_LABELS;
