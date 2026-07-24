@@ -1,6 +1,6 @@
 # Security Policy
 
-English | [Українська](SECURITY.uk.md) | [Deutsch](SECURITY.de.md)
+English | [Українська](SECURITY_UK.md) | [Deutsch](SECURITY_DE.md)
 
 This repository contains generated GitHub Pages output only.
 Source of truth: `radiova-platform-private/apps/web`

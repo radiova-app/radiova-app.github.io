@@ -1,6 +1,6 @@
 # Code of Conduct
 
-English | [Українська](CODE_OF_CONDUCT.uk.md) | [Deutsch](CODE_OF_CONDUCT.de.md)
+English | [Українська](CODE_OF_CONDUCT_UK.md) | [Deutsch](CODE_OF_CONDUCT_DE.md)
 
 This repository contains generated GitHub Pages output only.
 Source of truth: `radiova-platform-private/apps/web`

@@ -1,6 +1,6 @@
 # Сайт Radiova
 
-English | Українська | [Deutsch](README.de.md)
+[English](README.md) | Українська | [Deutsch](README_DE.md)
 
 Цей репозиторій містить лише згенерований вміст GitHub Pages.
 Джерело правди: `radiova-platform-private/apps/web`

@@ -1,6 +1,6 @@
 # Support
 
-English | [Українська](SUPPORT.uk.md) | [Deutsch](SUPPORT.de.md)
+English | [Українська](SUPPORT_UK.md) | [Deutsch](SUPPORT_DE.md)
 
 This repository contains generated GitHub Pages output only.
 Source of truth: `radiova-platform-private/apps/web`

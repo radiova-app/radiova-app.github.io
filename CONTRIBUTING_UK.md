@@ -1,6 +1,6 @@
 # Як робити внесок у Radiova
 
-English | Українська | [Deutsch](CONTRIBUTING.de.md)
+[English](CONTRIBUTING.md) | Українська | [Deutsch](CONTRIBUTING_DE.md)
 
 Цей репозиторій містить лише згенерований вміст GitHub Pages.
 Джерело правди: `radiova-platform-private/apps/web`

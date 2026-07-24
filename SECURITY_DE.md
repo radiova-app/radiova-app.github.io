@@ -1,6 +1,6 @@
 # Sicherheitsrichtlinie
 
-English | [Українська](SECURITY.uk.md) | Deutsch
+[English](SECURITY.md) | [Українська](SECURITY_UK.md) | Deutsch
 
 Dieses Repository enthält nur generierte GitHub-Pages-Ausgabe.
 Quelle der Wahrheit: `radiova-platform-private/apps/web`

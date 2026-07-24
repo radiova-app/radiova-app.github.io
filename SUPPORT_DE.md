@@ -1,6 +1,6 @@
 # Support
 
-English | [Українська](SUPPORT.uk.md) | Deutsch
+[English](SUPPORT.md) | [Українська](SUPPORT_UK.md) | Deutsch
 
 Dieses Repository enthält nur generierte GitHub-Pages-Ausgabe.
 Quelle der Wahrheit: `radiova-platform-private/apps/web`

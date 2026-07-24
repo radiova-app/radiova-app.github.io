@@ -1,6 +1,6 @@
 # Contributing to Radiova
 
-English | [Українська](CONTRIBUTING.uk.md) | [Deutsch](CONTRIBUTING.de.md)
+English | [Українська](CONTRIBUTING_UK.md) | [Deutsch](CONTRIBUTING_DE.md)
 
 This repository contains generated GitHub Pages output only.
 Source of truth: `radiova-platform-private/apps/web`

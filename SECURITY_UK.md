@@ -1,6 +1,6 @@
 # Політика безпеки
 
-English | Українська | [Deutsch](SECURITY.de.md)
+[English](SECURITY.md) | Українська | [Deutsch](SECURITY_DE.md)
 
 Цей репозиторій містить лише згенерований вміст GitHub Pages.
 Джерело правди: `radiova-platform-private/apps/web`

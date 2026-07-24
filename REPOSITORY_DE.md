@@ -1,6 +1,6 @@
 # Hinweis zum Repository
 
-English | [Українська](REPOSITORY.uk.md) | Deutsch
+[English](REPOSITORY.md) | [Українська](REPOSITORY_UK.md) | Deutsch
 
 Dieses Repository enthält nur generierte GitHub-Pages-Ausgabe.
 Quelle der Wahrheit: `radiova-platform-private/apps/web`

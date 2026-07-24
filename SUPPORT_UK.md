@@ -1,6 +1,6 @@
 # Підтримка
 
-English | Українська | [Deutsch](SUPPORT.de.md)
+[English](SUPPORT.md) | Українська | [Deutsch](SUPPORT_DE.md)
 
 Цей репозиторій містить лише згенерований вміст GitHub Pages.
 Джерело правди: `radiova-platform-private/apps/web`

@@ -1,6 +1,6 @@
 # Документація
 
-English | Українська | [Deutsch](DOCUMENTATION.de.md)
+[English](DOCUMENTATION.md) | Українська | [Deutsch](DOCUMENTATION_DE.md)
 
 Цей репозиторій містить лише згенерований вміст GitHub Pages.
 Джерело правди: `radiova-platform-private/apps/web`

@@ -8,27 +8,27 @@ const root = path.resolve(scriptDir, "..", "..");
 
 const requiredFiles = [
   "README.md",
-  "README.uk.md",
-  "README.de.md",
+  "README_UK.md",
+  "README_DE.md",
   "CONTRIBUTING.md",
-  "CONTRIBUTING.uk.md",
-  "CONTRIBUTING.de.md",
+  "CONTRIBUTING_UK.md",
+  "CONTRIBUTING_DE.md",
   "CODE_OF_CONDUCT.md",
-  "CODE_OF_CONDUCT.uk.md",
-  "CODE_OF_CONDUCT.de.md",
+  "CODE_OF_CONDUCT_UK.md",
+  "CODE_OF_CONDUCT_DE.md",
   "SECURITY.md",
-  "SECURITY.uk.md",
-  "SECURITY.de.md",
+  "SECURITY_UK.md",
+  "SECURITY_DE.md",
   "SUPPORT.md",
-  "SUPPORT.uk.md",
-  "SUPPORT.de.md",
+  "SUPPORT_UK.md",
+  "SUPPORT_DE.md",
   "CHANGELOG.md",
   "REPOSITORY.md",
-  "REPOSITORY.uk.md",
-  "REPOSITORY.de.md",
+  "REPOSITORY_UK.md",
+  "REPOSITORY_DE.md",
   "DOCUMENTATION.md",
-  "DOCUMENTATION.uk.md",
-  "DOCUMENTATION.de.md",
+  "DOCUMENTATION_UK.md",
+  "DOCUMENTATION_DE.md",
   "LICENSE",
   ".gitignore",
   ".github/PULL_REQUEST_TEMPLATE.md",
@@ -42,23 +42,24 @@ const requiredFiles = [
 ];
 
 const translationGroups = [
-  ["README.md", "README.uk.md", "README.de.md"],
-  ["CONTRIBUTING.md", "CONTRIBUTING.uk.md", "CONTRIBUTING.de.md"],
-  ["CODE_OF_CONDUCT.md", "CODE_OF_CONDUCT.uk.md", "CODE_OF_CONDUCT.de.md"],
-  ["SECURITY.md", "SECURITY.uk.md", "SECURITY.de.md"],
-  ["SUPPORT.md", "SUPPORT.uk.md", "SUPPORT.de.md"],
-  ["REPOSITORY.md", "REPOSITORY.uk.md", "REPOSITORY.de.md"],
-  ["DOCUMENTATION.md", "DOCUMENTATION.uk.md", "DOCUMENTATION.de.md"],
+  ["README.md", "README_UK.md", "README_DE.md"],
+  ["CONTRIBUTING.md", "CONTRIBUTING_UK.md", "CONTRIBUTING_DE.md"],
+  ["CODE_OF_CONDUCT.md", "CODE_OF_CONDUCT_UK.md", "CODE_OF_CONDUCT_DE.md"],
+  ["SECURITY.md", "SECURITY_UK.md", "SECURITY_DE.md"],
+  ["SUPPORT.md", "SUPPORT_UK.md", "SUPPORT_DE.md"],
+  ["REPOSITORY.md", "REPOSITORY_UK.md", "REPOSITORY_DE.md"],
+  ["DOCUMENTATION.md", "DOCUMENTATION_UK.md", "DOCUMENTATION_DE.md"],
 ];
+
+const navigationFiles = translationGroups.flat();
 
 const manualDocsWarnings = new Map([
   [".md", "Do not edit files inside docs/ manually."],
-  [".uk.md", "Не редагуйте файли всередині docs/ вручну."],
-  [".de.md", "Dateien in docs/ nicht manuell bearbeiten."],
+  ["_UK.md", "Не редагуйте файли всередині docs/ вручну."],
+  ["_DE.md", "Dateien in docs/ nicht manuell bearbeiten."],
 ]);
 const allowedPlaceholders = new Set([]);
 const forbiddenRootEntries = ["src", "tests", "scripts", "public", "documentation", "package.json", "package-lock.json", "pnpm-lock.yaml", "astro.config.mjs", "eslint.config.js", "tsconfig.json", "vitest.config.ts"];
-const securityFiles = ["SECURITY.md", "SECURITY.uk.md", "SECURITY.de.md"];
 
 function fail(message) {
   console.error(message);
@@ -143,7 +144,7 @@ function checkNoPrivatePaths(file) {
 
 function checkManualDocsWarning(file) {
   const text = read(file);
-  const expected = manualDocsWarnings.get(file.endsWith(".uk.md") ? ".uk.md" : file.endsWith(".de.md") ? ".de.md" : ".md");
+  const expected = manualDocsWarnings.get(file.endsWith("_UK.md") ? "_UK.md" : file.endsWith("_DE.md") ? "_DE.md" : ".md");
   if (expected && !text.includes(expected)) {
     fail(`missing manual docs warning in ${file}`);
   }
@@ -225,11 +226,51 @@ function checkDeploymentOnly() {
   }
 }
 
+function checkLocalizedNaming() {
+  const result = spawnSync("git", ["ls-files"], { cwd: root, encoding: "utf8" });
+  if (result.status !== 0) {
+    fail("unable to inspect tracked files");
+    return;
+  }
+
+  for (const line of result.stdout.split(/\r?\n/)) {
+    if (/\.(uk|de)\.md$/i.test(line)) {
+      fail(`legacy localized filename still tracked: ${line}`);
+    }
+  }
+}
+
+function navExpectation(file) {
+  if (file === "README.md") return "English | [Українська](README_UK.md) | [Deutsch](README_DE.md)";
+  if (file === "README_UK.md") return "[English](README.md) | Українська | [Deutsch](README_DE.md)";
+  if (file === "README_DE.md") return "[English](README.md) | [Українська](README_UK.md) | Deutsch";
+  if (file.endsWith(".md") && !file.includes("_")) {
+    const base = file.replace(/\.md$/, "");
+    return `English | [Українська](${base}_UK.md) | [Deutsch](${base}_DE.md)`;
+  }
+
+  const base = file.replace(/_(UK|DE)\.md$/, "");
+  if (file.endsWith("_UK.md")) return `[English](${base}.md) | Українська | [Deutsch](${base}_DE.md)`;
+  if (file.endsWith("_DE.md")) return `[English](${base}.md) | [Українська](${base}_UK.md) | Deutsch`;
+  return null;
+}
+
+function checkLanguageNavigation(file) {
+  const expected = navExpectation(file);
+  if (!expected) return;
+  const firstLine = read(file).split(/\r?\n/)[2] ?? "";
+  if (firstLine !== expected) {
+    fail(`language navigation mismatch in ${file}`);
+  }
+  const linkCount = (firstLine.match(/\[/g) ?? []).length;
+  if (linkCount !== 2) fail(`language navigation must contain exactly two links in ${file}`);
+}
+
 function checkSecurityPolicy() {
   const localizedMarkers = [
     ["SECURITY.md", "Private Vulnerability Reporting"],
-    ["SECURITY.uk.md", "Private Vulnerability Reporting"],
-    ["SECURITY.de.md", "Private Vulnerability Reporting"],
+    ["SECURITY_UK.md", "Private Vulnerability Reporting"],
+    ["SECURITY_DE.md", "Private Vulnerability Reporting"],
   ];
 
   for (const [file, marker] of localizedMarkers) {
@@ -255,6 +296,7 @@ function main() {
   }
 
   checkDeploymentOnly();
+  checkLocalizedNaming();
   checkSecurityPolicy();
   checkTrackedDocs();
 
@@ -268,28 +310,32 @@ function main() {
     checkPlaceholderPolicy(file);
   }
 
+  for (const file of navigationFiles) {
+    checkLanguageNavigation(file);
+  }
+
   for (const file of [
     "README.md",
-    "README.uk.md",
-    "README.de.md",
+    "README_UK.md",
+    "README_DE.md",
     "CONTRIBUTING.md",
-    "CONTRIBUTING.uk.md",
-    "CONTRIBUTING.de.md",
+    "CONTRIBUTING_UK.md",
+    "CONTRIBUTING_DE.md",
     "CODE_OF_CONDUCT.md",
-    "CODE_OF_CONDUCT.uk.md",
-    "CODE_OF_CONDUCT.de.md",
+    "CODE_OF_CONDUCT_UK.md",
+    "CODE_OF_CONDUCT_DE.md",
     "SECURITY.md",
-    "SECURITY.uk.md",
-    "SECURITY.de.md",
+    "SECURITY_UK.md",
+    "SECURITY_DE.md",
     "SUPPORT.md",
-    "SUPPORT.uk.md",
-    "SUPPORT.de.md",
+    "SUPPORT_UK.md",
+    "SUPPORT_DE.md",
     "REPOSITORY.md",
-    "REPOSITORY.uk.md",
-    "REPOSITORY.de.md",
+    "REPOSITORY_UK.md",
+    "REPOSITORY_DE.md",
     "DOCUMENTATION.md",
-    "DOCUMENTATION.uk.md",
-    "DOCUMENTATION.de.md",
+    "DOCUMENTATION_UK.md",
+    "DOCUMENTATION_DE.md",
   ]) {
     checkManualDocsWarning(file);
   }

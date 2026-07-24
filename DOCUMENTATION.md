@@ -1,6 +1,6 @@
 # Documentation
 
-English | [Українська](DOCUMENTATION.uk.md) | [Deutsch](DOCUMENTATION.de.md)
+English | [Українська](DOCUMENTATION_UK.md) | [Deutsch](DOCUMENTATION_DE.md)
 
 This repository contains generated GitHub Pages output only.
 Source of truth: `radiova-platform-private/apps/web`

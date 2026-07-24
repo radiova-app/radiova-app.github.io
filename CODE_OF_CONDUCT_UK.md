@@ -1,6 +1,6 @@
 # Код поведінки
 
-English | Українська | [Deutsch](CODE_OF_CONDUCT.de.md)
+[English](CODE_OF_CONDUCT.md) | Українська | [Deutsch](CODE_OF_CONDUCT_DE.md)
 
 Цей репозиторій містить лише згенерований вміст GitHub Pages.
 Джерело правди: `radiova-platform-private/apps/web`

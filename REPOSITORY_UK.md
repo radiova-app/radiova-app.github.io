@@ -1,6 +1,6 @@
 # Нотатка про репозиторій
 
-English | Українська | [Deutsch](REPOSITORY.de.md)
+[English](REPOSITORY.md) | Українська | [Deutsch](REPOSITORY_DE.md)
 
 Цей репозиторій містить лише згенерований вміст GitHub Pages.
 Джерело правди: `radiova-platform-private/apps/web`

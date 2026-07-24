@@ -1,6 +1,6 @@
 # Verhaltenskodex
 
-English | [Українська](CODE_OF_CONDUCT.uk.md) | Deutsch
+[English](CODE_OF_CONDUCT.md) | [Українська](CODE_OF_CONDUCT_UK.md) | Deutsch
 
 Dieses Repository enthält nur generierte GitHub-Pages-Ausgabe.
 Quelle der Wahrheit: `radiova-platform-private/apps/web`

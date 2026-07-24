@@ -1,6 +1,6 @@
 # Radiova-Website
 
-English | [Українська](README.uk.md) | Deutsch
+[English](README.md) | [Українська](README_UK.md) | Deutsch
 
 Dieses Repository enthält nur generierte GitHub-Pages-Ausgabe.
 Quelle der Wahrheit: `radiova-platform-private/apps/web`
