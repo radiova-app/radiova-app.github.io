@@ -1,30 +1,35 @@
+# Public deployment repo — source lives in radiova-platform-private
+
 # Dependencies
 node_modules/
 
-# Astro and build caches
+# Build artifacts (local builds use dist/, docs/ is the deployment target)
 .astro/
 dist/
 
-# Test and verification artifacts
+# Test and verification
 test-results/
 coverage/
 
-# Temporary source fixtures — used by documentation-lint tests and excluded
-# from the application build. These are created and removed by
-# tests/lint-docs.test.ts at runtime.
-src/__fixtures__/
+# Source files — not tracked here
+src/
+tests/
+scripts/
+public/
+documentation/
+screenshots-fix/
 
-# Local environment files
-.env
-.env.*
-!.env.example
+# Config files owned by the private monorepo
+package.json
+package-lock.json
+tsconfig.json
+vitest.config.ts
+astro.config.mjs
+eslint.config.js
+.prettierrc
+.prettierignore
+.editorconfig
 
-# IDE and operating-system files
-.DS_Store
-Thumbs.db
-
-# Local Codex / editor prompts
-*.local
+# Other artifacts
 TODO.local.md
-PROMPT-*.local.md
-PROMPT-PORT-EXTENSION-DASHBOARD.local.md
+0
