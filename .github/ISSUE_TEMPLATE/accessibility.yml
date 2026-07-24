@@ -1,0 +1,35 @@
+name: Accessibility issue
+description: Report a keyboard, screen reader, or contrast issue
+labels: [accessibility]
+body:
+  - type: input
+    id: tech
+    attributes:
+      label: Assistive technology
+      placeholder: Keyboard only, NVDA, VoiceOver, TalkBack
+    validations:
+      required: true
+  - type: input
+    id: route
+    attributes:
+      label: Route or page
+    validations:
+      required: true
+  - type: textarea
+    id: issue
+    attributes:
+      label: Keyboard or screen reader issue
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+    validations:
+      required: false

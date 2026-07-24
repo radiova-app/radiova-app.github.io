@@ -1,35 +1,24 @@
-# Public deployment repo — source lives in radiova-platform-private
+# Operating-system files
+.DS_Store
+Thumbs.db
 
-# Dependencies
-node_modules/
+# IDE files
+.idea/
+.vscode/
 
-# Build artifacts (local builds use dist/, docs/ is the deployment target)
+# Local environment overrides
+.env*
+!.env.example
+
+# Local prompts
+PROMPT-*.local.md
+
+# Deployment staging and backups
+.deploy-staging/
+.deploy-backup/
+
+# Local build and test artifacts
 .astro/
 dist/
-
-# Test and verification
 test-results/
 coverage/
-
-# Source files — not tracked here
-src/
-tests/
-scripts/
-public/
-documentation/
-screenshots-fix/
-
-# Config files owned by the private monorepo
-package.json
-package-lock.json
-tsconfig.json
-vitest.config.ts
-astro.config.mjs
-eslint.config.js
-.prettierrc
-.prettierignore
-.editorconfig
-
-# Other artifacts
-TODO.local.md
-0

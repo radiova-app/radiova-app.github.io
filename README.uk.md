@@ -1,49 +1,54 @@
 # Сайт Radiova
 
-[English](README.md) | [Deutsch](README.de.md)
+English | Українська | [Deutsch](README.de.md)
 
-Публічний плеєр Radiova — це статичний сайт на Astro та PWA. Дизайн спирається на dashboard розширення; production-адреса: [radiova-app.github.io](https://radiova-app.github.io).
+Цей репозиторій містить лише згенерований вміст GitHub Pages.
+Джерело правди: `radiova-platform-private/apps/web`
+Опублікований результат: `docs/`
 
-## Розробка та перевірка
+Не редагуйте файли всередині docs/ вручну. Їх створює production-збірка приватного monorepo.
 
-```bash
-npm install
-npm run dev
-npm run check
-npm run lint
-npm test
-npm run build
-npm run preview
-git diff --check
-```
+Статус: підтримуваний публічний репозиторій для сайту Radiova.
 
-Локальний сервер доступний за адресою `http://localhost:4321`. `npm run dev:host` відкриває його для інших пристроїв у локальній мережі. Production-збірка створюється в `dist/`.
+Офіційний сайт: <https://radiova-app.github.io>
 
-## Джерела плейлистів
+## Що є в репозиторії
 
-Сайт у runtime читає дані з публічного [radiova-stations](https://github.com/radiova-app/radiova-stations): manifest `generated/playlists-manifest.json` і плейлисти `uk`, `en`, `de`, `global`, `all` у форматі M3U.
+- `docs/` - опублікований статичний сайт
+- `.github/` - workflows, шаблони та інструкції репозиторію
+- `README*` - огляд репозиторію трьома мовами
+- `LICENSE` - ліцензія проєкту
 
-Спочатку завантажується manifest, потім обраний плейлист. M3U перевіряється, SHA-256 звіряється за наявності, а остання коректна копія зберігається для offline-режиму. Оновлення плейлистів не потребує нової збірки сайту.
+## Підтримувані мови
 
-## Локальні дані
+- English
+- Українська
+- Deutsch
 
-Усі користувацькі дані залишаються в браузері:
+## Про сайт
 
-- IndexedDB: улюблені, нещодавні станції, кеш плейлистів, власні плейлисти
-- local storage: гучність, mute та вибрана мова
+Radiova - це статичний Astro-сайт і PWA для прослуховування радіо та керування плейлистами.
+Підтримувані браузери: сучасні Chromium, Firefox і Safari.
+PWA найкраще працює в Chromium; на iPhone та iPad встановлення відбувається через Safari на екран додому.
+Приватність: стан плеєра, налаштування, плейлисти та згода зберігаються лише в браузері.
 
-Власні плейлисти можна створювати, перейменовувати, видаляти, імпортувати з M3U й експортувати в M3U. Сторінка Privacy має підтверджену дію скидання локальних даних.
+## Публічні звернення
 
-## PWA
+- Повідомлення про зламані станції: використайте шаблон issue або сторінку Support.
+- Help: <https://radiova-app.github.io/help/>
+- Privacy: <https://radiova-app.github.io/privacy/>
+- Support: <https://radiova-app.github.io/support/>
 
-Є manifest, service worker, offline-кеш shell і maskable-іконки. У Chromium кнопка встановлення з'являється після `beforeinstallprompt`.
+## Роль репозиторію
 
-На iPhone або iPad відкрийте сайт у Safari, виберіть **Поділитися**, потім **На екран «Додому»**. Safari не показує Chromium install prompt.
+Зміни коду належать у приватний monorepo.
+Цей репозиторій публікує лише згенерований `docs/` та документацію навколо нього.
 
-Аудіопотоки не кешуються. Якщо CORS станції блокує аналіз аудіо, відтворення продовжується зі статичним fallback візуалізатора.
+## Внесок
 
-## GitHub Pages
+Публічні внески обмежені баг-репортами, повідомленнями про зламані станції, виправленнями перекладів, фідбеком щодо доступності та правками документації.
+Для змін коду використовуйте приватний monorepo.
 
-`.github/workflows/deploy.yml` запускає check, lint, tests і build, після чого публікує `dist/` у GitHub Pages тільки після push у `main` або ручного запуску workflow. Локальні команди не виконують deploy.
+## Ліцензія
 
-Міграція extension на спільний remote manifest відкладена в окремий follow-up і не входить у зміни цього репозиторію.
+Див. `LICENSE`.

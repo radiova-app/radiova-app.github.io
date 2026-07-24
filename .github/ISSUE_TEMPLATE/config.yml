@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Support
+    url: https://radiova-app.github.io/support/
+    about: Browser troubleshooting, PWA help, and broken station reporting.
+  - name: Help
+    url: https://radiova-app.github.io/help/
+    about: Website usage guidance and common questions.
+  - name: Security policy
+    url: https://github.com/radiova-app/radiova-app.github.io/blob/main/SECURITY.md
+    about: Security issues must not be posted publicly. Use Security → Report a vulnerability.

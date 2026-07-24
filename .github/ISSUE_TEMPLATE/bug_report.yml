@@ -1,0 +1,82 @@
+name: Bug report
+description: Report a problem in the public website
+labels: [bug]
+body:
+  - type: input
+    id: route
+    attributes:
+      label: Route or page
+      placeholder: /, /help/, /uk/privacy/
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser
+      placeholder: Chrome 126, Firefox 128, Safari 17
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: Windows 11, macOS, iOS, Android
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device
+      placeholder: Desktop, laptop, phone, tablet
+    validations:
+      required: true
+  - type: input
+    id: viewport
+    attributes:
+      label: Viewport size
+      placeholder: 390x844
+    validations:
+      required: false
+  - type: dropdown
+    id: consent
+    attributes:
+      label: Consent mode
+      options:
+        - Unknown
+        - Accepted
+        - Declined privacy
+        - Private mode
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: 1. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+    validations:
+      required: true
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots or recordings
+    validations:
+      required: false
+  - type: textarea
+    id: console
+    attributes:
+      label: Console errors
+      render: text
+    validations:
+      required: false

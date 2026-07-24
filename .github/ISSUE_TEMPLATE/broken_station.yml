@@ -1,0 +1,64 @@
+name: Broken station
+description: Report a stream or station problem
+labels: [station]
+body:
+  - type: input
+    id: station
+    attributes:
+      label: Station name
+    validations:
+      required: true
+  - type: input
+    id: playlist
+    attributes:
+      label: Playlist or category
+      placeholder: uk, en, de, global, all
+    validations:
+      required: true
+  - type: input
+    id: stream
+    attributes:
+      label: Stream URL if known
+    validations:
+      required: false
+  - type: dropdown
+    id: failure
+    attributes:
+      label: Failure type
+      options:
+        - Does not load
+        - Plays silently
+        - Wrong station
+        - Visual only issue
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: browser
+    attributes:
+      label: Browser
+    validations:
+      required: true
+  - type: input
+    id: time
+    attributes:
+      label: Date and time
+      placeholder: 2026-07-24 14:30 UTC
+    validations:
+      required: true
+  - type: dropdown
+    id: fallback
+    attributes:
+      label: Did the fallback work?
+      options:
+        - Yes
+        - No
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+    validations:
+      required: false
