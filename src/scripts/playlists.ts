@@ -4,16 +4,15 @@ import { fetchManifest, getPlaylistEntry } from '../services/playlist';
 import { loadLocale, t } from '../services/i18n';
 import { whenConsentResolved } from '../services/consent';
 import type { CustomPlaylist } from '../types/storage';
+import { $ } from '../shared/dom';
 
-function $(id: string): HTMLElement | null {
-  return document.getElementById(id);
-}
-
+/** Set the status message element text. */
 function setStatus(message = ''): void {
   const status = $('custom-playlists-status');
   if (status) status.textContent = message;
 }
 
+/** Create an action button for a custom playlist card. */
 function createButton(label: string, action: string, name: string): HTMLButtonElement {
   const button = document.createElement('button');
   button.type = 'button';
@@ -24,6 +23,7 @@ function createButton(label: string, action: string, name: string): HTMLButtonEl
   return button;
 }
 
+/** Render a single custom playlist as a DOM element. */
 function renderCustomPlaylist(playlist: CustomPlaylist): HTMLElement {
   const item = document.createElement('article');
   item.className = 'custom-playlist-item';
@@ -49,6 +49,7 @@ function renderCustomPlaylist(playlist: CustomPlaylist): HTMLElement {
   return item;
 }
 
+/** Render all custom playlists to the DOM list element. */
 async function renderCustomPlaylists(): Promise<void> {
   const list = $('custom-playlists-list');
   if (!list) return;
@@ -66,6 +67,7 @@ async function renderCustomPlaylists(): Promise<void> {
   for (const playlist of playlists) list.append(renderCustomPlaylist(playlist));
 }
 
+/** Create a new empty custom playlist from the input field value. */
 async function createPlaylist(): Promise<void> {
   const input = $('custom-playlist-name') as HTMLInputElement | null;
   const name = input?.value.trim() ?? '';
@@ -84,6 +86,7 @@ async function createPlaylist(): Promise<void> {
   await renderCustomPlaylists();
 }
 
+/** Import stations from an M3U file as a new custom playlist. */
 async function importPlaylist(file: File): Promise<void> {
   const content = await file.text();
   if (!validateM3U(content)) {
@@ -101,6 +104,7 @@ async function importPlaylist(file: File): Promise<void> {
   await renderCustomPlaylists();
 }
 
+/** Route a click on a playlist action button (export/rename/delete). */
 async function handlePlaylistAction(target: HTMLElement): Promise<void> {
   const action = target.dataset['action'];
   const name = target.dataset['name'];
@@ -135,6 +139,7 @@ async function handlePlaylistAction(target: HTMLElement): Promise<void> {
   }
 }
 
+/** Fetch manifest and populate playlist info for each locale. */
 async function renderManifestInfo(): Promise<void> {
   const manifest = await fetchManifest();
   if (!manifest) return;
@@ -147,6 +152,7 @@ async function renderManifestInfo(): Promise<void> {
   }
 }
 
+/** Copy a playlist URL to clipboard. */
 async function copyRawUrl(button: HTMLElement): Promise<void> {
   const url = button.dataset['url'];
   if (!url) return;
@@ -158,6 +164,7 @@ async function copyRawUrl(button: HTMLElement): Promise<void> {
   }
 }
 
+/** Playlists page entry point: bind form, import, and action handlers. */
 async function init(): Promise<void> {
   loadLocale();
   const form = $('custom-playlist-form') as HTMLFormElement | null;

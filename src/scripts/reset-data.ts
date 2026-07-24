@@ -2,6 +2,7 @@ import { resetAllData } from '../services/db';
 import { loadLocale, t } from '../services/i18n';
 import { clearRadiovaStorage, openPrivacySettings, whenConsentResolved } from '../services/consent';
 
+/** Reset all local Radiova data (IndexedDB, localStorage, cache, SW). */
 async function resetData(): Promise<void> {
   if (!window.confirm(t('privacy.resetConfirm'))) return;
   await resetAllData();

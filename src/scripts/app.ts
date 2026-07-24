@@ -31,20 +31,8 @@ import {
 } from "../services/pwa";
 import { createEqualizer, type EqualizerHandle } from "./equalizer";
 import type { Station } from "../types/station";
-
-const PLAY_ICON = '<polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/>';
-const PAUSE_ICON =
-  '<rect x="6" y="4" width="4" height="16" fill="currentColor"/><rect x="14" y="4" width="4" height="16" fill="currentColor"/>';
-const SPINNER_ICON =
-  '<circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2" opacity="0.25"/><path d="M20 12a8 8 0 00-8-8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
-const WARNING_ICON =
-  '<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v6M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>';
-
-const PLAY_ICON_FULL = `<svg viewBox="0 0 24 24" class="menu-icon" aria-hidden="true">${PLAY_ICON}</svg>`;
-const PAUSE_ICON_FULL = `<svg viewBox="0 0 24 24" class="menu-icon" aria-hidden="true">${PAUSE_ICON}</svg>`;
-const SPINNER_ICON_FULL = `<svg viewBox="0 0 24 24" class="menu-icon loading-spinner" aria-hidden="true">${SPINNER_ICON}</svg>`;
-const WARNING_ICON_FULL = `<svg viewBox="0 0 24 24" class="menu-icon warning-icon" aria-hidden="true">${WARNING_ICON}</svg>`;
-const STREAM_TIMEOUT_MS = 12000;
+import { $, escapeHtml, iconForStatus, isLoadingStatus, ariaLabelForStatus, safeArtworkUrl } from "../shared/dom";
+import { EVENTS, STREAM_TIMEOUT_MS, PLACEHOLDER_IMG } from "../shared/constants";
 
 let currentPlayId: string | null = null;
 let currentStation: Station | null = null;
@@ -79,15 +67,16 @@ const diagnostics: {
   },
 };
 
-function $(id: string): HTMLElement | null {
-  return document.getElementById(id);
-}
-
+/** True when the current route is the home page in any locale. */
 function isHomePage(): boolean {
   const path = window.location.pathname.replace(/\/$/, "");
   return path === "" || path === "/" || path === "/uk" || path === "/de";
 }
 
+/**
+ * App initialisation entry point.
+ * Called once after consent is resolved and on every route change via onPageNavigation.
+ */
 async function init(): Promise<void> {
   loadLocale();
   applyI18n();
@@ -103,10 +92,10 @@ async function init(): Promise<void> {
   await restorePlayerState();
 
   window.addEventListener("beforeunload", persistPlayerState);
-  document.addEventListener("radiova:volume-changed", () => {
+  document.addEventListener(EVENTS.VOLUME_CHANGED, () => {
     syncAllVolumeSliders();
   });
-  document.addEventListener("radiova:mute-changed", () => {
+  document.addEventListener(EVENTS.MUTE_CHANGED, () => {
     syncAllMuteButtons();
   });
 
@@ -115,6 +104,7 @@ async function init(): Promise<void> {
   handlePlayerChange(getSharedPlayerState());
 }
 
+/** Show/hide the dashboard and header player sections based on current route. */
 function applyPlayerVisibility(): void {
   const home = isHomePage();
   const dp = $("dashboard-player");
@@ -124,6 +114,10 @@ function applyPlayerVisibility(): void {
   if (hp) hp.classList.toggle("is-route-hidden", home);
 }
 
+/**
+ * Restore the last played station and endpoint from settings on first load.
+ * Does nothing if already restored.
+ */
 async function restorePlayerState(): Promise<void> {
   if (restoredOnce) return;
   restoredOnce = true;
@@ -203,6 +197,7 @@ async function restorePlayerState(): Promise<void> {
   }
 }
 
+/** Save the current station and endpoint to settings on unload. */
 function persistPlayerState(): void {
   if (currentStation) {
     settings.lastStationId = currentStation.id;
@@ -211,6 +206,7 @@ function persistPlayerState(): void {
   void saveSettings(settings);
 }
 
+/** React to player state changes: update UI, equaliser, stream timeout. */
 function handlePlayerChange(state: SharedPlayerState): void {
   updateHeaderPlayer(state);
   updateDashboardPlayer(state);
@@ -223,6 +219,7 @@ function handlePlayerChange(state: SharedPlayerState): void {
   }
 }
 
+/** Toggle the sidebar collapsed class based on settings and viewport. */
 function applyDesktopCollapse(): void {
   const shell = $("shell");
   if (!shell) return;
@@ -238,6 +235,7 @@ function applyDesktopCollapse(): void {
 
 let domAbortController: AbortController | null = null;
 
+/** Attach event listeners for header player controls. */
 function bindHeaderPlayer(signal: AbortSignal): void {
   const headerLogo = $("header-station-logo");
   if (headerLogo) {
@@ -266,6 +264,7 @@ function bindHeaderPlayer(signal: AbortSignal): void {
   if (headerMute) headerMute.addEventListener("click", toggleMute, { signal });
 }
 
+/** Attach event listeners for dashboard player controls. */
 function bindDashboardPlayer(signal: AbortSignal): void {
   const toggleBtn = $("dashboard-station-square");
   if (toggleBtn) {
@@ -318,7 +317,7 @@ function bindDashboardPlayer(signal: AbortSignal): void {
       () => {
         const statusEl = $("update-status");
         if (statusEl) statusEl.textContent = "Updating...";
-        document.dispatchEvent(new CustomEvent("radiova:refresh"));
+        document.dispatchEvent(new CustomEvent(EVENTS.REFRESH));
       },
       { signal },
     );
@@ -355,6 +354,7 @@ function bindDashboardPlayer(signal: AbortSignal): void {
   );
 }
 
+/** Refresh player UI elements from the current station state after navigation. */
 function restorePlayerUI(): void {
   if (!currentStation) return;
   const state = getSharedPlayerState();
@@ -365,6 +365,7 @@ function restorePlayerUI(): void {
   updateDashboardPlayer(state);
 }
 
+/** Create or rebind the equaliser to the current DOM canvas elements. */
 function rebindEqualizer(): void {
   const eqLeft = $("dashboard-equalizer-left") as HTMLCanvasElement | null;
   const eqRight = $("dashboard-equalizer-right") as HTMLCanvasElement | null;
@@ -390,6 +391,7 @@ function rebindEqualizer(): void {
   }
 }
 
+/** Re-bind all UI controls after a route change (astro:page-load). */
 function bindAll(): void {
   domAbortController?.abort();
   domAbortController = new AbortController();
@@ -408,11 +410,12 @@ function bindAll(): void {
 
   if (currentStation) {
     document.dispatchEvent(
-      new CustomEvent("radiova:player-station-changed", { detail: currentStation.id }),
+      new CustomEvent(EVENTS.PLAYER_STATION_CHANGED, { detail: currentStation.id }),
     );
   }
 }
 
+/** Track resize events to toggle mobile/desktop sidebar collapse. */
 function setupResizeHandler(): void {
   let prevWidth = window.innerWidth;
   window.addEventListener("resize", () => {
@@ -424,6 +427,7 @@ function setupResizeHandler(): void {
   });
 }
 
+/** Attach sidebar toggle and route link listeners. */
 function bindSidebar(): void {
   sidebarAbortController?.abort();
   sidebarAbortController = new AbortController();
@@ -463,15 +467,16 @@ function bindSidebar(): void {
   });
 }
 
+/** Set up global player event listeners (station selected, toggle, error). */
 function setupPlayerListeners(): void {
   onError(handlePlaybackError);
 
-  document.addEventListener("radiova:station-selected", (event) => {
+  document.addEventListener(EVENTS.STATION_SELECTED, (event) => {
     const station = (event as CustomEvent<Station>).detail;
     if (station.endpoints.length) selectStation(station);
   });
 
-  document.addEventListener("radiova:player-toggle", togglePlayback);
+  document.addEventListener(EVENTS.PLAYER_TOGGLE, togglePlayback);
 
   document.addEventListener("click", (event) => {
     const target = event.target as HTMLElement;
@@ -480,29 +485,12 @@ function setupPlayerListeners(): void {
     }
   });
 
-  document.addEventListener("radiova:stations-changed", (event) => {
+  document.addEventListener(EVENTS.STATIONS_CHANGED, (event) => {
     currentStations = (event as CustomEvent<Station[]>).detail;
   });
 }
 
-const PLACEHOLDER_IMG = "/assets/images/station-placeholder.svg";
-
-const siteIsSecure = window.location.protocol === "https:";
-
-function safeArtworkUrl(url: string | undefined, context: string): string {
-  if (!url) return "";
-  if (url.startsWith("https://")) return url;
-  if (url.startsWith("http://")) {
-    if (siteIsSecure) {
-      diagnostics.add("artwork " + context + ": mixed-content blocked " + url.slice(0, 60));
-      return "";
-    }
-    return url;
-  }
-  diagnostics.add("artwork " + context + ": invalid scheme " + url.slice(0, 60));
-  return "";
-}
-
+/** Update the compact header player controls from player state. */
 function updateHeaderPlayer(state: SharedPlayerState): void {
   const hasStation = Boolean(state.station.stationId);
   const emptyTitle = t("player.noStation");
@@ -534,6 +522,7 @@ function updateHeaderPlayer(state: SharedPlayerState): void {
   if (!hasStation) setPlayerImage("header-station-image", PLACEHOLDER_IMG, emptyTitle, "empty header");
 }
 
+/** Update the full dashboard player section from player state. */
 function updateDashboardPlayer(state: SharedPlayerState): void {
   const dp = $("dashboard-player");
   if (!dp) return;
@@ -573,6 +562,7 @@ function updateDashboardPlayer(state: SharedPlayerState): void {
   if (!state.station.stationId) setPlayerImage("dashboard-station-image", PLACEHOLDER_IMG, t("player.noStation"), "empty dashboard");
 }
 
+/** Sync the equaliser start/stop with the playback state. */
 function updateEqualizer(state: string): void {
   const audioEl = getAudioElement();
   if (audioEl && equalizer) {
@@ -583,6 +573,7 @@ function updateEqualizer(state: string): void {
   }
 }
 
+/** Set a player image with onerror fallback to PLACEHOLDER_IMG. */
 function setPlayerImage(imgId: string, src: string, alt: string, context: string): void {
   const img = $(imgId) as HTMLImageElement | null;
   if (!img) return;
@@ -596,8 +587,9 @@ function setPlayerImage(imgId: string, src: string, alt: string, context: string
   img.style.display = "";
 }
 
+/** Update all player station image elements for a given station. */
 function setStationImages(station: Station): void {
-  const logoUrl = safeArtworkUrl(station.logo, "player");
+  const logoUrl = safeArtworkUrl(station.logo, (msg) => { diagnostics.add(msg); });
 
   function setImg(imgId: string, alt: string): void {
     setPlayerImage(imgId, logoUrl || PLACEHOLDER_IMG, alt, "player");
@@ -616,6 +608,10 @@ function setStationImages(station: Station): void {
   }
 }
 
+/**
+ * Select and start playing a station at the given endpoint index.
+ * Falls back through endpoints on failure.
+ */
 function selectStation(station: Station, endpointIndex = 0): void {
   const ep = station.endpoints[endpointIndex];
   if (!ep) {
@@ -689,9 +685,10 @@ function selectStation(station: Station, endpointIndex = 0): void {
   void saveSettings(settings);
   void addRecent(station.id);
   updateStreamSelector(station);
-  document.dispatchEvent(new CustomEvent("radiova:player-station-changed", { detail: station.id }));
+  document.dispatchEvent(new CustomEvent(EVENTS.PLAYER_STATION_CHANGED, { detail: station.id }));
 }
 
+/** Update header and dashboard station title elements. */
 function updateStationInfo(station: Station): void {
   const headerTitle = $("header-station-title");
   if (headerTitle) headerTitle.textContent = station.name;
@@ -700,11 +697,13 @@ function updateStationInfo(station: Station): void {
   if (dashboardTitle) dashboardTitle.textContent = station.name;
 }
 
+/** Update stream selector buttons for both header and dashboard. */
 function updateStreamSelector(station: Station): void {
   updateSelector("header-stream-selector", station);
   updateSelector("dashboard-streams", station);
 }
 
+/** Render stream selector buttons for a single element. */
 function updateSelector(elId: string, station: Station): void {
   const el = $(elId);
   if (!el) return;
@@ -733,6 +732,7 @@ function updateSelector(elId: string, station: Station): void {
     .join("");
 }
 
+/** Move to the next or previous station in the current station list. */
 function navigateStation(dir: number): void {
   if (currentStations.length === 0) return;
   const idx = currentPlayId
@@ -748,6 +748,10 @@ function navigateStation(dir: number): void {
   if (nextStation) selectStation(nextStation);
 }
 
+/**
+ * Handle a stream playback error.
+ * Attempts fallback to the next endpoint; after all are exhausted shows error UI.
+ */
 function handlePlaybackError(): void {
   clearStreamTimeout();
   const audioEl = getAudioElement();
@@ -814,6 +818,7 @@ function handlePlaybackError(): void {
   showStreamError("Unable to play this stream");
 }
 
+/** Render an inline stream error message with a retry button. */
 function showStreamError(msg: string): void {
   const status = $("update-status");
   if (!status) return;
@@ -826,16 +831,19 @@ function showStreamError(msg: string): void {
     "</span>";
 }
 
+/** Clear the stream error UI. */
 function clearStreamError(): void {
   const status = $("update-status");
   if (status) status.innerHTML = "";
 }
 
+/** Retry the current station from its first endpoint. */
 function retryCurrentStation(): void {
   if (!currentStation) return;
   selectStation(currentStation, 0);
 }
 
+/** Timeout callback: treat as a playback error to trigger fallback. */
 function handlePlaybackTimeout(): void {
   diagnostics.add(
     "playback timeout: endpoint=" +
@@ -846,41 +854,27 @@ function handlePlaybackTimeout(): void {
   handlePlaybackError();
 }
 
+/** Start the stream startup timeout. */
 function startStreamTimeout(): void {
   clearStreamTimeout();
   streamTimeoutId = window.setTimeout(handlePlaybackTimeout, STREAM_TIMEOUT_MS);
 }
 
+/** Cancel the stream startup timeout if active. */
 function clearStreamTimeout(): void {
   if (streamTimeoutId === null) return;
   window.clearTimeout(streamTimeoutId);
   streamTimeoutId = null;
 }
 
+/** Clear the timeout when a terminal or playing state is reached. */
 function updateStreamTimeout(status: PlayerState): void {
   if (status === "playing" || status === "paused" || status === "idle" || status === "error") {
     clearStreamTimeout();
   }
 }
 
-function iconForStatus(status: PlayerState): string {
-  if (status === "playing") return PAUSE_ICON_FULL;
-  if (isLoadingStatus(status)) return SPINNER_ICON_FULL;
-  if (status === "error") return WARNING_ICON_FULL;
-  return PLAY_ICON_FULL;
-}
-
-function isLoadingStatus(status: PlayerState): boolean {
-  return status === "loading" || status === "waiting" || status === "retrying";
-}
-
-function ariaLabelForStatus(status: PlayerState): string {
-  if (status === "playing") return "Pause";
-  if (isLoadingStatus(status)) return "Loading stream";
-  if (status === "error") return "Stream error. Retry";
-  return "Play";
-}
-
+/** Show/hide the PWA install button based on installability. */
 function updatePWAButton(): void {
   const btn = $("pwa-install-btn");
   if (!btn) return;
@@ -896,6 +890,7 @@ function updatePWAButton(): void {
   }
 }
 
+/** Sync all volume slider elements to the current volume. */
 function syncAllVolumeSliders(): void {
   const vol = getVolume();
   const sliders = ["header-volume", "dashboard-volume"];
@@ -905,6 +900,7 @@ function syncAllVolumeSliders(): void {
   }
 }
 
+/** Sync all mute button elements to the current mute state. */
 function syncAllMuteButtons(): void {
   const muted = isMuted();
   const muteBtns = ["header-mute-btn", "dashboard-mute-btn"];
@@ -918,12 +914,7 @@ function syncAllMuteButtons(): void {
 
 onPWAStateChange(updatePWAButton);
 
-function escapeHtml(str: string): string {
-  const div = document.createElement("div");
-  div.textContent = str;
-  return div.innerHTML;
-}
-
+/** Mark the current language link as active in the language switcher. */
 function updateLanguageActiveState(): void {
   const path = window.location.pathname;
   const locale =
@@ -941,6 +932,7 @@ function updateLanguageActiveState(): void {
   }
 }
 
+/** Re-bind UI after an Astro view transition. */
 function onPageNavigation(): void {
   bindAll();
   updateLanguageActiveState();

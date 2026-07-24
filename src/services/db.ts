@@ -37,7 +37,10 @@ function openDB(): Promise<IDBDatabase> {
   });
 }
 
-// Settings
+/**
+ * Read app settings from IndexedDB (or memory fallback).
+ * Returns DEFAULT_SETTINGS on failure.
+ */
 export async function getSettings(): Promise<AppSettings> {
   if (!hasConsent('preferences')) return { ...memorySettings };
   try {
@@ -55,6 +58,7 @@ export async function getSettings(): Promise<AppSettings> {
   }
 }
 
+/** Persist app settings to IndexedDB (or memory fallback). */
 export async function saveSettings(settings: AppSettings): Promise<void> {
   if (!hasConsent('preferences')) {
     memorySettings = { ...settings };
@@ -69,7 +73,10 @@ export async function saveSettings(settings: AppSettings): Promise<void> {
   }
 }
 
-// Playlists
+/**
+ * Read a cached playlist for a locale from IndexedDB.
+ * Returns null when consent is denied or the cache is missing.
+ */
 export async function getCachedPlaylist(locale: string): Promise<PlaylistData | null> {
   if (!hasConsent('offline')) return null;
   try {
@@ -87,6 +94,7 @@ export async function getCachedPlaylist(locale: string): Promise<PlaylistData | 
   }
 }
 
+/** Store a playlist in IndexedDB for offline access. */
 export async function cachePlaylist(locale: string, data: PlaylistData): Promise<void> {
   if (!hasConsent('offline')) return;
   try {
@@ -98,7 +106,7 @@ export async function cachePlaylist(locale: string, data: PlaylistData): Promise
   }
 }
 
-// Favorites
+/** Return the set of favorite station IDs. */
 export async function getFavorites(): Promise<Set<string>> {
   if (!hasConsent('preferences')) return new Set(memoryFavorites);
   try {
@@ -114,6 +122,7 @@ export async function getFavorites(): Promise<Set<string>> {
   }
 }
 
+/** Add a station ID to favorites. */
 export async function addFavorite(id: string): Promise<void> {
   if (!hasConsent('preferences')) {
     memoryFavorites.add(id);
@@ -128,6 +137,7 @@ export async function addFavorite(id: string): Promise<void> {
   }
 }
 
+/** Remove a station ID from favorites. */
 export async function removeFavorite(id: string): Promise<void> {
   if (!hasConsent('preferences')) {
     memoryFavorites.delete(id);
@@ -142,7 +152,7 @@ export async function removeFavorite(id: string): Promise<void> {
   }
 }
 
-// Recents
+/** Return recently played station IDs sorted by recency (newest first). */
 export async function getRecents(): Promise<string[]> {
   if (!hasConsent('preferences')) return [...memoryRecents];
   try {
@@ -162,6 +172,7 @@ export async function getRecents(): Promise<string[]> {
   }
 }
 
+/** Record a station as recently played. */
 export async function addRecent(stationId: string): Promise<void> {
   if (!hasConsent('preferences')) {
     memoryRecents = [stationId, ...memoryRecents.filter((id) => id !== stationId)].slice(0, 20);
@@ -176,7 +187,7 @@ export async function addRecent(stationId: string): Promise<void> {
   }
 }
 
-// Custom playlists
+/** Return names of all custom playlists. */
 export async function getCustomPlaylistNames(): Promise<string[]> {
   if (!hasConsent('preferences')) return memoryCustomPlaylists.map((playlist) => playlist.name);
   try {
@@ -192,6 +203,7 @@ export async function getCustomPlaylistNames(): Promise<string[]> {
   }
 }
 
+/** Return all custom playlists sorted by updatedAt descending. */
 export async function getCustomPlaylists(): Promise<CustomPlaylist[]> {
   if (!hasConsent('preferences')) {
     return [...memoryCustomPlaylists].sort((a, b) => b.updatedAt - a.updatedAt);
@@ -212,6 +224,7 @@ export async function getCustomPlaylists(): Promise<CustomPlaylist[]> {
   }
 }
 
+/** Return a single custom playlist by name, or null. */
 export async function getCustomPlaylist(name: string): Promise<CustomPlaylist | null> {
   if (!hasConsent('preferences')) {
     return memoryCustomPlaylists.find((playlist) => playlist.name === name) ?? null;
@@ -232,6 +245,7 @@ export async function getCustomPlaylist(name: string): Promise<CustomPlaylist | 
   }
 }
 
+/** Create or overwrite a custom playlist with the given stations. */
 export async function saveCustomPlaylist(name: string, stations: Station[]): Promise<void> {
   if (!hasConsent('preferences')) {
     const existing = memoryCustomPlaylists.find((playlist) => playlist.name === name);
@@ -261,6 +275,7 @@ export async function saveCustomPlaylist(name: string, stations: Station[]): Pro
   }
 }
 
+/** Rename a custom playlist. Returns false if the new name is taken. */
 export async function renameCustomPlaylist(currentName: string, nextName: string): Promise<boolean> {
   if (currentName === nextName) return true;
   if (!hasConsent('preferences')) {
@@ -286,6 +301,7 @@ export async function renameCustomPlaylist(currentName: string, nextName: string
   }
 }
 
+/** Delete a custom playlist by name. */
 export async function deleteCustomPlaylist(name: string): Promise<void> {
   if (!hasConsent('preferences')) {
     memoryCustomPlaylists = memoryCustomPlaylists.filter((playlist) => playlist.name !== name);
@@ -300,7 +316,7 @@ export async function deleteCustomPlaylist(name: string): Promise<void> {
   }
 }
 
-// Reset
+/** Clear all IndexedDB stores and reset in-memory state. */
 export async function resetAllData(): Promise<void> {
   memorySettings = { ...DEFAULT_SETTINGS };
   memoryFavorites = new Set<string>();

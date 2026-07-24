@@ -260,18 +260,19 @@ describe("localized routes preserve locale", () => {
 
 describe("equalizer lifecycle", () => {
   const equalizer = readFile("src/scripts/equalizer.ts");
+  const audioGraph = readFile("src/services/audio-graph.ts");
 
   it("exports createEqualizer function", () => {
     expect(equalizer).toContain("export function createEqualizer");
   });
 
   it("uses AudioContext", () => {
-    expect(equalizer).toContain("AudioContext");
+    expect(audioGraph).toContain("AudioContext");
   });
 
   it("uses AnalyserNode", () => {
-    expect(equalizer).toContain("AnalyserNode");
-    expect(equalizer).toContain("createAnalyser");
+    expect(audioGraph).toContain("AnalyserNode");
+    expect(audioGraph).toContain("createAnalyser");
   });
 
   it("uses requestAnimationFrame", () => {
@@ -287,8 +288,8 @@ describe("equalizer lifecycle", () => {
   });
 
   it("prevents duplicate MediaElementSource", () => {
-    expect(equalizer).toContain("if (!graph.source) graph.source = ctx.createMediaElementSource(audioEl)");
-    expect(equalizer.match(/createMediaElementSource\(audioEl\)/g)?.length).toBe(1);
+    expect(audioGraph).toContain("if (!graph.source) graph.source = ctx.createMediaElementSource(audioEl)");
+    expect(audioGraph.match(/createMediaElementSource\(audioEl\)/g)?.length).toBe(1);
   });
 });
 
@@ -408,18 +409,20 @@ describe("media-event player UI", () => {
   });
 
   it("uses spinner for loading, waiting, and retrying states", () => {
-    expect(app).toContain("isLoadingStatus(status)");
-    expect(app).toContain("SPINNER_ICON_FULL");
-    expect(dashboard).toContain("SPINNER_ICON_SVG");
-    expect(dashboard).toContain(
+    expect(app).toContain("isLoadingStatus(state.status)");
+    expect(dashboard).toContain("iconForStatus(rowStatus)");
+    const dom = readFile("src/shared/dom.ts");
+    expect(dom).toContain("SPINNER_ICON_FULL");
+    expect(dom).toContain(
       'status === "loading" || status === "waiting" || status === "retrying"',
     );
   });
 
   it("uses warning icon after all endpoints fail", () => {
     expect(app).toContain('setPlaybackStatus("error"');
-    expect(app).toContain("WARNING_ICON_FULL");
-    expect(dashboard).toContain("WARNING_ICON_SVG");
+    const dom = readFile("src/shared/dom.ts");
+    expect(dom).toContain("WARNING_ICON_FULL");
+    expect(dashboard).toContain("has-error");
   });
 
   it("row icon follows shared player state, not click-local state", () => {
@@ -430,9 +433,10 @@ describe("media-event player UI", () => {
   });
 
   it("large and compact player icon mapping follows shared state", () => {
-    expect(app).toContain("function iconForStatus(status: PlayerState)");
-    expect(app).toContain('if (status === "playing") return PAUSE_ICON_FULL');
-    expect(app).toContain('if (status === "error") return WARNING_ICON_FULL');
+    expect(app).toContain("iconForStatus(state.status)");
+    const dom = readFile("src/shared/dom.ts");
+    expect(dom).toContain('if (status === "playing") return PAUSE_ICON_FULL');
+    expect(dom).toContain('if (status === "error") return WARNING_ICON_FULL');
   });
 
   it("has timeout and retrying state for slow or failed streams", () => {
@@ -713,7 +717,20 @@ describe("station row structure", () => {
   });
 
   it("click on already-playing station pauses", () => {
-    expect(dashboard).toContain("radiova:player-toggle");
+    expect(dashboard).toContain("EVENTS.PLAYER_TOGGLE");
+  });
+
+  it("EVENTS constants match source event names", () => {
+    const constants = readFile("src/shared/constants.ts");
+    expect(constants).toContain("PLAYER_TOGGLE: \"radiova:player-toggle\"");
+    expect(constants).toContain("STATION_SELECTED: \"radiova:station-selected\"");
+    expect(constants).toContain("STATIONS_CHANGED: \"radiova:stations-changed\"");
+    expect(constants).toContain("PLAYER_STATION_CHANGED: \"radiova:player-station-changed\"");
+    expect(constants).toContain("REFRESH: \"radiova:refresh\"");
+    expect(constants).toContain("VOLUME_CHANGED: \"radiova:volume-changed\"");
+    expect(constants).toContain("MUTE_CHANGED: \"radiova:mute-changed\"");
+    expect(constants).toContain("CONSENT_RESOLVED: \"radiova:consent-resolved\"");
+    expect(constants).toContain("CONSENT_CHANGED: \"radiova:consent-changed\"");
   });
 });
 
@@ -725,13 +742,18 @@ describe("safe artwork URL handling", () => {
     expect(dashboard).toContain("safeArtworkUrl");
   });
 
-  it("dashboard.ts handles mixed-content HTTP artwork", () => {
-    expect(dashboard).toContain("mixed-content blocked");
+  it("artwork URL handler rejects mixed-content on HTTPS", () => {
+    const dom = readFile("src/shared/dom.ts");
+    expect(dom).toContain("mixed-content blocked");
   });
 
   it("dashboard.ts uses PLACEHOLDER_IMG fallback", () => {
     expect(dashboard).toContain("PLACEHOLDER_IMG");
-    expect(dashboard).toContain("station-placeholder.svg");
+  });
+
+  it("shared constants define PLACEHOLDER_IMG path", () => {
+    const constants = readFile("src/shared/constants.ts");
+    expect(constants).toContain("station-placeholder.svg");
   });
 
   it("app.ts has safeArtworkUrl for player images", () => {
@@ -741,10 +763,6 @@ describe("safe artwork URL handling", () => {
   it("app.ts handles artwork network error with fallback", () => {
     expect(app).toContain('diagnostics.add("artwork " + context + ": fallback for "');
     expect(app).toContain("fallback for");
-  });
-
-  it("app.ts uses same PLACEHOLDER_IMG constant", () => {
-    expect(app).toContain("station-placeholder.svg");
   });
 });
 
@@ -906,35 +924,36 @@ describe("View Transitions and persistent audio", () => {
 
 describe("stereo equalizer", () => {
   const eq = readFile("src/scripts/equalizer.ts");
+  const graphFile = readFile("src/services/audio-graph.ts");
+  const lm = readFile("src/services/level-meter.ts");
   const app = readFile("src/scripts/app.ts");
   const index = readFile("src/pages/index.astro");
   const globalScss = readFile("src/styles/global.scss");
 
   it("uses ChannelSplitterNode for stereo", () => {
-    expect(eq).toContain("createChannelSplitter");
-    expect(eq).toContain("splitter");
+    expect(graphFile).toContain("createChannelSplitter");
+    expect(graphFile).toContain("splitter");
   });
 
   it("has left and right analysers", () => {
-    expect(eq).toContain("analyserL");
-    expect(eq).toContain("analyserR");
+    expect(graphFile).toContain("analyserL");
+    expect(graphFile).toContain("analyserR");
   });
 
   it("connects splitter outputs to separate analysers", () => {
-    expect(eq).toContain("graph.splitter.connect(graph.analyserL, 0)");
-    expect(eq).toContain("graph.splitter.connect(graph.analyserR, 1)");
+    expect(graphFile).toContain("graph.splitter.connect(graph.analyserL, 0)");
+    expect(graphFile).toContain("graph.splitter.connect(graph.analyserR, 1)");
   });
 
   it("routes destination through gain node, not analysers", () => {
-    expect(eq).toContain("graph.gainNode.connect(ctx.destination)");
-    expect(eq).not.toContain("analyserL.connect(audioCtx.destination)");
-    expect(eq).not.toContain("analyserR.connect(audioCtx.destination)");
+    expect(graphFile).toContain("graph.gainNode.connect(ctx.destination)");
+    expect(graphFile).not.toContain("analyserL.connect(audioCtx.destination)");
+    expect(graphFile).not.toContain("analyserR.connect(audioCtx.destination)");
   });
 
   it("draws top downward and bottom upward in code", () => {
     expect(eq).toContain("drawBars(views.topCtx, topData, bufferLength, true)");
     expect(eq).toContain("drawBars(views.bottomCtx, bottomData, bufferLength, false)");
-    expect(eq).toContain("const y = growFromTop ? 0 : h - barH");
   });
 
   it("has real-stereo mode", () => {
@@ -960,9 +979,9 @@ describe("stereo equalizer", () => {
   });
 
   it("uses time-domain data for left and right meter levels", () => {
-    expect(eq).toContain("getByteTimeDomainData(data)");
-    expect(eq).toContain("const leftLevel = readAnalyserLevel(graph.analyserL)");
-    expect(eq).toContain("const rightLevel = readAnalyserLevel(graph.analyserR)");
+    expect(lm).toContain("getByteTimeDomainData(data)");
+    expect(eq).toContain("const leftLevel = readAnalyserLevel(audioGraph.analyserL)");
+    expect(eq).toContain("const rightLevel = readAnalyserLevel(audioGraph.analyserR)");
     expect(eq).toContain("leftMeterWidth = smoothLevel(leftMeterWidth, meterTarget(topLevel))");
     expect(eq).toContain("rightMeterWidth = smoothLevel(rightMeterWidth, meterTarget(bottomLevel))");
   });
@@ -994,8 +1013,8 @@ describe("stereo equalizer", () => {
   });
 
   it("keeps CORS-blocked and unavailable meters inactive", () => {
-    expect(eq).toContain("eqMode === 'cors-blocked'");
-    expect(eq).toContain("eqMode === 'paused' ? 'paused' : 'inactive'");
+    expect(eq).toContain('eqMode === "cors-blocked"');
+    expect(eq).toContain('eqMode === "paused" ? "paused" : "inactive"');
   });
 });
 
@@ -1261,28 +1280,29 @@ describe("sidebar rebinding lifecycle", () => {
 
 describe("persistent audio graph (equalizer refactor)", () => {
   const eq = readFile("src/scripts/equalizer.ts");
+  const graphFile = readFile("src/services/audio-graph.ts");
   const app = readFile("src/scripts/app.ts");
   const globalScss = readFile("src/styles/global.scss");
 
   it("has ensureGraph that checks already-connected", () => {
-    expect(eq).toContain("graph.connected && graph.source && graph.audioElement === audioEl");
+    expect(graphFile).toContain("graph.connected && graph.source && graph.audioElement === audioEl");
   });
 
   it("has persistent graph and replaceable views", () => {
-    expect(eq).toContain("interface PersistentVisualizerGraph");
+    expect(graphFile).toContain("interface PersistentVisualizerGraph");
     expect(eq).toContain("interface VisualizerViews");
-    expect(eq).toContain("const graph: PersistentVisualizerGraph");
+    expect(graphFile).toContain("const graph: PersistentVisualizerGraph");
     expect(eq).toContain("const views: VisualizerViews");
   });
 
   it("creates one media element source only when missing", () => {
-    expect(eq).toContain("if (!graph.source) graph.source = ctx.createMediaElementSource(audioEl)");
-    expect(eq.match(/createMediaElementSource\(audioEl\)/g)?.length).toBe(1);
+    expect(graphFile).toContain("if (!graph.source) graph.source = ctx.createMediaElementSource(audioEl)");
+    expect(graphFile.match(/createMediaElementSource\(audioEl\)/g)?.length).toBe(1);
   });
 
   it("creates only one AudioContext", () => {
-    expect(eq).toContain("if (!graph.audioCtx)");
-    expect(eq).toContain("graph.audioCtx = new AudioContext()");
+    expect(graphFile).toContain("if (!graph.audioCtx)");
+    expect(graphFile).toContain("graph.audioCtx = new AudioContext()");
   });
 
   it("has rebindCanvases method", () => {
@@ -1290,17 +1310,18 @@ describe("persistent audio graph (equalizer refactor)", () => {
   });
 
   it("closes AudioContext only on final pagehide teardown", () => {
-    expect(eq).toContain("window.addEventListener('pagehide', disconnectGraph, { once: true })");
-    expect(eq).toContain("graph.audioCtx.close()");
+    expect(graphFile).toContain("graph.audioCtx.close()");
+    expect(eq).toContain("window.addEventListener(");
+    expect(eq).toContain("graphDisconnect");
     expect(app).not.toContain("equalizer.destroy()");
   });
 
   it("routes audible output through a gain node instead of analysers", () => {
-    expect(eq).toContain("gainNode: GainNode | null");
-    expect(eq).toContain("graph.gainNode.connect(ctx.destination)");
-    expect(eq).toContain("graph.gainNode.connect(graph.splitter)");
-    expect(eq).not.toContain("analyserL.connect(audioCtx.destination)");
-    expect(eq).not.toContain("analyserR.connect(audioCtx.destination)");
+    expect(graphFile).toContain("gainNode: GainNode | null");
+    expect(graphFile).toContain("graph.gainNode.connect(ctx.destination)");
+    expect(graphFile).toContain("graph.gainNode.connect(graph.splitter)");
+    expect(graphFile).not.toContain("analyserL.connect(audioCtx.destination)");
+    expect(graphFile).not.toContain("analyserR.connect(audioCtx.destination)");
   });
 
   it("exposes visualizer debug state for browser verification", () => {

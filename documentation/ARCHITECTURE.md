@@ -1,0 +1,54 @@
+# Architecture
+
+## Source layout
+
+| Directory | Purpose |
+|---|---|
+| `src/services/` | Persistent state, pure logic, no DOM dependency |
+| `src/scripts/` | Page-specific UI logic (runs once per page lifecycle) |
+| `src/visualizer/` | Stateless canvas rendering |
+| `src/shared/` | Constants, DOM helpers, icon strings — shared between scripts |
+
+## Architectural rules
+
+**Graph outlives views.** The Web Audio graph (`src/services/audio-graph.ts`) is
+created once when the first equalizer is mounted and persists across page
+navigation. Only canvas references (view layer) are rebound on route change.
+The graph is disconnected only on `pagehide` — never during navigation.
+
+**Single RAF loop.** One `requestAnimationFrame` callback (`tick` in
+`src/scripts/equalizer.ts`) handles frequency data collection, level
+calculation, meter DOM updates, and canvas drawing. A second concurrent loop
+is never started. Decay after pause reuses the same loop briefly, then stops.
+
+**Visualizer failure never interrupts playback.** Missing canvases, null
+contexts, silent AnalyserNodes, or exceptions in drawing code degrade the
+visual output silently. Audio continues uninterrupted.
+
+**An <audio> element gets one MediaElementAudioSourceNode.** Creating a
+second source on the same element throws. The guard in `ensureGraph`
+rejects silently when the audio element changes rather than rebuild.
+
+## Module responsibilities
+
+| Module | Responsibility |
+|---|---|
+| `src/services/audio-graph.ts` | Singleton AudioContext, MediaElementAudioSourceNode, GainNode, ChannelSplitterNode, two AnalyserNodes. Connect/disconnect lifecycle. |
+| `src/services/level-meter.ts` | Pure functions: `clampLevel`, `calculateLevelFromTimeDomainData`, `smoothLevel` (fast attack, slow release), `maxBin`, `meterTarget`, `readAnalyserLevel`. |
+| `src/services/player.ts` | Persistent `<audio>` element, media event handling, playback state machine, volume/mute persistence. |
+| `src/services/consent.ts` | Consent/cookie modal, pre-consent language switcher. State + UI in one module. |
+| `src/services/db.ts` | IndexedDB wrapper for offline station metadata. |
+| `src/services/playlist.ts` | Custom playlist CRUD (IndexedDB). |
+| `src/services/pwa.ts` | Service worker registration, install prompt. |
+| `src/services/releases.ts` | GitHub releases metadata fetch. |
+| `src/services/reporter.ts` | Error/health reporting. |
+| `src/services/i18n.ts` | Runtime locale switching. |
+| `src/services/m3u.ts` | M3U playlist parser. |
+| `src/scripts/equalizer.ts` | Integration layer: weaves audio-graph + level-meter + canvas-renderer. Owns RAF loop, meter state, debug state, `EqMode`. Exports `createEqualizer`, `createSideVisualizer`. |
+| `src/scripts/app.ts` | Player UI, station selection, stream timeout/fallback, PWA install, sidebar, volume sync. |
+| `src/scripts/dashboard.ts` | Station list, pagination, search, favorites, tabs. |
+| `src/scripts/playlists.ts` | Custom playlist UI. |
+| `src/visualizer/canvas-renderer.ts` | Stateless drawing: `drawBars`, `drawSide`, `drawStaticCanvas`, `resizeCanvasToDisplaySize`, `getCtx`. |
+| `src/shared/constants.ts` | Event names (`EVENTS.*`), storage keys (`STORAGE.*`), magic numbers, DOM selectors (`SELECTORS.*`). |
+| `src/shared/icons.ts` | SVG path constants, icon wrapper functions. |
+| `src/shared/dom.ts` | DOM utilities: `$`, `escapeHtml`, `iconForStatus`, `isLoadingStatus`, `safeArtworkUrl`, `dispatch`, `listen`. |

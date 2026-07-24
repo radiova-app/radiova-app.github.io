@@ -1,5 +1,6 @@
 import { hasConsent } from './consent';
 
+/** A single stream playback failure report. */
 export interface StreamReport {
   stationId: string | null;
   stationName: string | null;
@@ -13,7 +14,9 @@ export interface StreamReport {
 const STORAGE_KEY = 'radiova-stream-report-queue';
 const MAX_QUEUE_SIZE = 50;
 
+/** LocalStorage-backed report queue (max 50 entries). */
 export class LocalQueueTransport {
+  /** Append a report to the queue in localStorage. */
   enqueue(report: StreamReport): void {
     if (!hasConsent('diagnostics')) return;
     try {
@@ -25,6 +28,7 @@ export class LocalQueueTransport {
     }
   }
 
+  /** Read all queued reports. */
   list(): StreamReport[] {
     if (!hasConsent('diagnostics')) return [];
     try {
@@ -37,6 +41,7 @@ export class LocalQueueTransport {
     }
   }
 
+  /** Clear all queued reports from localStorage. */
   clear(): void {
     if (!hasConsent('diagnostics')) return;
     try {
@@ -47,7 +52,9 @@ export class LocalQueueTransport {
   }
 }
 
+/** No-op remote transport (placeholder for future server-side reporting). */
 export class DisabledRemoteTransport {
+  /** Always returns false — no remote endpoint configured. */
   send(_report: StreamReport): Promise<boolean> {
     return Promise.resolve(false);
   }
@@ -56,6 +63,10 @@ export class DisabledRemoteTransport {
 const localQueue = new LocalQueueTransport();
 const remote = new DisabledRemoteTransport();
 
+/**
+ * Queue a stream failure report locally and attempt remote delivery.
+ * Respects the diagnostics consent category.
+ */
 export function queueStreamReport(report: StreamReport): void {
   if (!hasConsent('diagnostics')) return;
   localQueue.enqueue(report);

@@ -4,7 +4,6 @@ import { whenConsentResolved } from "../services/consent";
 import {
   getSharedPlayerState,
   onChange,
-  type PlayerState,
   type SharedPlayerState,
 } from "../services/player";
 import {
@@ -16,17 +15,9 @@ import {
 } from "../services/db";
 import type { Station } from "../types/station";
 import type { AppSettings } from "../types/storage";
-
-const PLAY_ICON_SVG =
-  '<svg viewBox="0 0 24 24" class="menu-icon" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3" fill="currentColor"/></svg>';
-const PAUSE_ICON_SVG =
-  '<svg viewBox="0 0 24 24" class="menu-icon" aria-hidden="true"><rect x="6" y="4" width="4" height="16" fill="currentColor"/><rect x="14" y="4" width="4" height="16" fill="currentColor"/></svg>';
-const SPINNER_ICON_SVG =
-  '<svg viewBox="0 0 24 24" class="menu-icon loading-spinner" aria-hidden="true"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2" opacity="0.25"/><path d="M20 12a8 8 0 00-8-8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
-const WARNING_ICON_SVG =
-  '<svg viewBox="0 0 24 24" class="menu-icon warning-icon" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v6M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
-const STAR_FILL = "\u2605";
-const STAR_EMPTY = "\u2606";
+import { $, escapeHtml, safeArtworkUrl, isLoadingStatus, iconForStatus } from "../shared/dom";
+import { EVENTS, PLACEHOLDER_IMG } from "../shared/constants";
+import { STAR_FILL, STAR_EMPTY } from "../shared/icons";
 
 let allStations: Station[] = [];
 let currentStations: Station[] = [];
@@ -39,12 +30,9 @@ let favoritesSet = new Set<string>();
 let settings: AppSettings;
 let search = "";
 
-function $(id: string): HTMLElement | null {
-  return document.getElementById(id);
-}
-
 let tabAbortController: AbortController | null = null;
 
+/** Initialise the dashboard page: load settings, favourites, stations. */
 async function init(): Promise<void> {
   loadLocale();
   applyI18n();
@@ -59,6 +47,7 @@ async function init(): Promise<void> {
   await loadStations(currentLocale);
 }
 
+/** Set up global listeners that survive view transitions. */
 function setupPersistentListeners(): void {
   onChange((state) => {
     playerState = state;
@@ -66,7 +55,7 @@ function setupPersistentListeners(): void {
     renderStationList();
   });
 
-  document.addEventListener("radiova:player-station-changed", (event) => {
+  document.addEventListener(EVENTS.PLAYER_STATION_CHANGED, (event) => {
     currentPlayId = (event as CustomEvent<string>).detail;
   });
 
@@ -83,9 +72,9 @@ function setupPersistentListeners(): void {
     }
 
     if (target.closest(".station-row__play")) {
-      if (id === currentPlayId && isPendingStatus(playerState.status)) return;
+      if (id === currentPlayId && isLoadingStatus(playerState.status)) return;
       if (id === currentPlayId) {
-        document.dispatchEvent(new CustomEvent("radiova:player-toggle"));
+        document.dispatchEvent(new CustomEvent(EVENTS.PLAYER_TOGGLE));
       } else {
         const st = findStation(id);
         if (st) playStation(st);
@@ -105,7 +94,7 @@ function setupPersistentListeners(): void {
     }
   });
 
-  document.addEventListener("radiova:refresh", () => {
+  document.addEventListener(EVENTS.REFRESH, () => {
     void loadStations(currentLocale);
     const statusEl = $("update-status");
     if (statusEl) {
@@ -117,6 +106,7 @@ function setupPersistentListeners(): void {
   });
 }
 
+/** Bind tab, search, retry, and page-size controls. */
 function bindDashboardUI(): void {
   if (typeof settings === "undefined") return;
   tabAbortController?.abort();
@@ -191,6 +181,7 @@ function bindDashboardUI(): void {
   }
 }
 
+/** Load stations for a given playlist locale and render the list. */
 async function loadStations(locale: string): Promise<void> {
   showLoading(true);
   hideError();
@@ -211,6 +202,7 @@ async function loadStations(locale: string): Promise<void> {
   updateStationCount();
 }
 
+/** Render the filtered and paginated station list to the DOM. */
 function renderStationList(): void {
   const list = $("stations-list");
   if (!list) return;
@@ -225,7 +217,7 @@ function renderStationList(): void {
   }
 
   currentStations = filtered;
-  document.dispatchEvent(new CustomEvent("radiova:stations-changed", { detail: currentStations }));
+  document.dispatchEvent(new CustomEvent(EVENTS.STATIONS_CHANGED, { detail: currentStations }));
   const total = filtered.length;
   const pages = Math.max(1, Math.ceil(total / pageSize));
   const page = Math.max(0, Math.min(currentPage, pages - 1));
@@ -249,37 +241,7 @@ function renderStationList(): void {
   updateStationCount();
 }
 
-const PLACEHOLDER_IMG = "/assets/images/station-placeholder.svg";
-const isSecure = window.location.protocol === "https:";
-
-const dashboardDiag = {
-  add: (_msg: string): void => {
-    /* noop */
-  },
-};
-
-(function setupDashboardDiagnostics(): void {
-  if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
-    dashboardDiag.add = (msg: string) => {
-      console.log("🎨", msg);
-    };
-  }
-})();
-
-function safeArtworkUrl(url: string | undefined): string {
-  if (!url) return "";
-  if (url.startsWith("https://")) return url;
-  if (url.startsWith("http://")) {
-    if (isSecure) {
-      dashboardDiag.add("artwork: mixed-content blocked " + url.slice(0, 60));
-      return "";
-    }
-    return url;
-  }
-  dashboardDiag.add("artwork: invalid scheme " + url.slice(0, 60));
-  return "";
-}
-
+/** Render a single station row as an HTML string. */
 function renderStationRow(st: Station): string {
   const isSelected = currentPlayId === st.id;
   const rowStatus = isSelected ? playerState.status : "idle";
@@ -288,6 +250,7 @@ function renderStationRow(st: Station): string {
   const epCount = st.endpoints.length;
   const codecs = [...new Set(st.endpoints.map((ep) => ep.codec).filter(Boolean))];
   const artwork = safeArtworkUrl(st.logo);
+  const statusIcon = iconForStatus(rowStatus);
 
   const artworkHtml = artwork
     ? `<img class="station-row__artwork" src="${escapeHtml(artwork)}" alt="" loading="lazy" onerror="this.onerror=null;this.src='${PLACEHOLDER_IMG}';this.onerror=null" />`
@@ -296,7 +259,7 @@ function renderStationRow(st: Station): string {
   return `<div class="station-row${isSelected ? " is-active" : ""}" data-station-id="${st.id}">
     <div class="station-row__info">
       <button class="station-row__play${rowStatus === "error" ? " has-error" : ""}" type="button" aria-label="${escapeHtml(statusLabel)}" title="${escapeHtml(statusLabel)}">
-        ${iconForStatus(rowStatus)}
+        ${statusIcon}
       </button>
       <div class="station-row__visual">${artworkHtml}</div>
       <div>
@@ -314,6 +277,7 @@ function renderStationRow(st: Station): string {
   </div>`;
 }
 
+/** Render pagination controls with ellipsis for large page counts. */
 function renderPagination(page: number, total: number): void {
   const el = $("stations-pagination");
   if (!el) return;
@@ -351,6 +315,7 @@ function renderPagination(page: number, total: number): void {
   el.innerHTML = html;
 }
 
+/** Update the list footer with count display and page size selector. */
 function renderListFooter(total: number, start: number, end: number): void {
   const footer = $("list-footer");
   const count = $("list-count");
@@ -365,26 +330,18 @@ function renderListFooter(total: number, start: number, end: number): void {
   if (sizeSelect) sizeSelect.value = String(pageSize);
 }
 
+/** Find a station by ID in the loaded station list. */
 function findStation(id: string): Station | undefined {
   return allStations.find((s) => s.id === id);
 }
 
+/** Dispatch STATION_SELECTED event to trigger playback. */
 function playStation(st: Station): void {
   currentPlayId = st.id;
-  document.dispatchEvent(new CustomEvent("radiova:station-selected", { detail: st }));
+  document.dispatchEvent(new CustomEvent(EVENTS.STATION_SELECTED, { detail: st }));
 }
 
-function iconForStatus(status: PlayerState): string {
-  if (status === "playing") return PAUSE_ICON_SVG;
-  if (isPendingStatus(status)) return SPINNER_ICON_SVG;
-  if (status === "error") return WARNING_ICON_SVG;
-  return PLAY_ICON_SVG;
-}
-
-function isPendingStatus(status: PlayerState): boolean {
-  return status === "loading" || status === "waiting" || status === "retrying";
-}
-
+/** Show/hide the Favorites tab based on whether any favourites exist. */
 function updateFavoritesTabVisibility(): void {
   const favTab = document.querySelector<HTMLElement>('.station-tab[data-locale="favorites"]');
   if (favTab) {
@@ -392,6 +349,7 @@ function updateFavoritesTabVisibility(): void {
   }
 }
 
+/** Toggle a station's favourite status and re-render. */
 async function toggleFav(id: string): Promise<void> {
   if (favoritesSet.has(id)) {
     favoritesSet.delete(id);
@@ -409,6 +367,7 @@ async function toggleFav(id: string): Promise<void> {
   }
 }
 
+/** Update the status display after playlist load. */
 function updateStatus(fromCache: boolean): void {
   const statusEl = $("update-status");
   if (!statusEl) return;
@@ -422,12 +381,14 @@ function updateStatus(fromCache: boolean): void {
   }
 }
 
+/** Update the station count display. */
 function updateStationCount(): void {
   const el = $("station-count");
   if (!el) return;
   el.textContent = t("filter.count", { count: allStations.length });
 }
 
+/** Show/hide the loading indicator. */
 function showLoading(show: boolean): void {
   const el = $("loading-indicator");
   if (el) el.classList.toggle("is-hidden", !show);
@@ -437,6 +398,7 @@ function showLoading(show: boolean): void {
   }
 }
 
+/** Show the empty state and clear the station list. */
 function showEmpty(): void {
   const el = $("empty-state");
   if (el) el.classList.remove("is-hidden");
@@ -448,22 +410,19 @@ function showEmpty(): void {
   if (footer) footer.classList.add("is-hidden");
 }
 
+/** Hide the empty state. */
 function hideEmpty(): void {
   const el = $("empty-state");
   if (el) el.classList.add("is-hidden");
 }
 
+/** Hide the error state. */
 function hideError(): void {
   const el = $("error-state");
   if (el) el.classList.add("is-hidden");
 }
 
-function escapeHtml(str: string): string {
-  const div = document.createElement("div");
-  div.textContent = str;
-  return div.innerHTML;
-}
-
+/** Re-bind dashboard UI after an Astro view transition. */
 function reinitOnNavigation(): void {
   if (document.getElementById("stations-list")) {
     loadLocale();

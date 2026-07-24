@@ -1,5 +1,6 @@
 import { hasConsent } from './consent';
 
+/** Supported UI locales. */
 export type Locale = 'en' | 'uk' | 'de';
 
 const STORAGE_KEY = 'radiova-lang';
@@ -474,10 +475,12 @@ const DICT: Record<Locale, Record<string, string>> = {
   },
 };
 
+/** Return the current runtime locale. */
 export function getLocale(): Locale {
   return currentLocale;
 }
 
+/** Set the runtime locale and persist to localStorage if consent allows. */
 export function setLocale(locale: Locale): void {
   currentLocale = locale;
   if (!hasConsent('preferences')) return;
@@ -488,6 +491,10 @@ export function setLocale(locale: Locale): void {
   }
 }
 
+/**
+ * Initialise locale from document lang attribute or persisted preference.
+ * Should be called once during app bootstrap.
+ */
 export function loadLocale(): Locale {
   try {
     const htmlLang = document.documentElement.lang;
@@ -508,6 +515,11 @@ export function loadLocale(): Locale {
   return currentLocale;
 }
 
+/**
+ * Translate a key using the current locale dictionary.
+ * Falls back to English, then to the key itself.
+ * Supports interpolated {param} placeholders.
+ */
 export function t(key: string, params?: Record<string, string | number>): string {
   const dict = DICT[currentLocale];
   let val = dict[key];
@@ -522,6 +534,10 @@ export function t(key: string, params?: Record<string, string | number>): string
   return val;
 }
 
+/**
+ * Apply translations to all DOM elements with data-i18n,
+ * data-i18n-placeholder, or data-i18n-title attributes.
+ */
 export function applyI18n(root: ParentNode = document): void {
   root.querySelectorAll('[data-i18n]').forEach((el) => {
     const key = el.getAttribute('data-i18n');

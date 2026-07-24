@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateLevelFromTimeDomainData, clampLevel, smoothLevel } from "../src/scripts/equalizer";
+import { calculateLevelFromTimeDomainData, clampLevel, smoothLevel } from "../src/services/level-meter";
 
 describe("equalizer level calculation", () => {
   it("calculates silence as zero RMS and peak", () => {

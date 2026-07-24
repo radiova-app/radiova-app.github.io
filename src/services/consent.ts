@@ -1,5 +1,7 @@
+/** Consent category used for granular storage checks. */
 export type ConsentCategory = "necessary" | "preferences" | "offline" | "diagnostics";
 
+/** Current consent state — immutable once decided. */
 export interface ConsentState {
   version: number;
   status: "unknown" | "accepted" | "declined";
@@ -10,8 +12,10 @@ export interface ConsentState {
   decidedAt: string | null;
 }
 
+/** The two possible resolution modes of the consent gate. */
 export type ConsentMode = "accepted" | "private";
 
+/** Payload for the radiova:consent-resolved custom event. */
 export interface ConsentResolvedDetail {
   mode: ConsentMode;
 }
@@ -137,19 +141,26 @@ function persistAccepted(state: ConsentState): void {
   );
 }
 
+/** Return the current consent state snapshot. */
 export function getConsentState(): ConsentState {
   return currentState;
 }
 
+/** Check whether a specific consent category is granted. */
 export function hasConsent(category: ConsentCategory): boolean {
   if (category === "necessary") return true;
   return currentState[category];
 }
 
+/** Return true when the user declined consent (privacy mode). */
 export function isPrivacyMode(): boolean {
   return currentState.status === "declined";
 }
 
+/**
+ * Wait until the user has resolved the consent gate.
+ * Resolves immediately if consent was already given or declined.
+ */
 export function whenConsentResolved(): Promise<ConsentState> {
   if (currentState.status !== "unknown") return Promise.resolve(currentState);
   if (window.__radiovaConsentResolved) {
@@ -307,6 +318,10 @@ function renderConsentGate(): HTMLElement {
   return gate;
 }
 
+/**
+ * Initialise the consent gate dialog.
+ * Must be called once during app bootstrap, before any storage-dependent logic.
+ */
 export function initConsentGate(): void {
   currentState = readConsentState();
   document.documentElement.dataset["consent"] = currentState.status;
@@ -391,6 +406,10 @@ export function initConsentGate(): void {
   }, 0);
 }
 
+/**
+ * Remove all Radiova data from localStorage, IndexedDB,
+ * Cache Storage, and unregister service workers.
+ */
 export async function clearRadiovaStorage(): Promise<void> {
   try {
     localStorage.removeItem(STORAGE_KEY);
@@ -432,11 +451,13 @@ export async function clearRadiovaStorage(): Promise<void> {
   }
 }
 
+/** Withdraw consent by clearing all stored data and resetting state to unknown. */
 export async function withdrawConsent(): Promise<void> {
   await clearRadiovaStorage();
   currentState = unknownState();
 }
 
+/** Open the privacy settings dialog (review consent / withdraw). */
 export function openPrivacySettings(): void {
   const text = COPY[locale()];
   const existing = document.getElementById("privacy-settings-dialog");

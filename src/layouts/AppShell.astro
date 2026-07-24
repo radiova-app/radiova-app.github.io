@@ -22,6 +22,7 @@ const {
   currentPath: string;
 };
 
+/** Prefix a canonical href with the current locale path unless it is English. */
 function localizeHref(href: string): string {
   const normalized = href === "/" || !href ? "/" : `${href}/`;
   if (lang === "en") return normalized;
@@ -29,12 +30,14 @@ function localizeHref(href: string): string {
   return normalized === "/" ? `${prefix}/` : prefix + normalized;
 }
 
+/** True when the given canonical href matches the current path after localisation. */
 function isActive(href: string): boolean {
   const loc = localizeHref(href);
   const norm = loc === "" ? "/" : loc.replace(/\/$/, "");
   return currentPath.replace(/\/$/, "") === norm;
 }
 
+/** Return the sidebar item label in the current document language. */
 function sidebarLabel(item: SidebarItem): string {
   if (lang === "uk") return item.labelUk;
   if (lang === "de") return item.labelDe;

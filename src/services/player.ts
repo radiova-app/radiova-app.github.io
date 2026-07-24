@@ -1,8 +1,11 @@
 import { hasConsent } from "./consent";
+import { EVENTS } from "../shared/constants";
 
+/** Observable player state machine value. */
 export type PlayerState =
   "idle" | "loading" | "waiting" | "retrying" | "playing" | "paused" | "error";
 
+/** Currently selected station and active endpoint metadata. */
 export interface PlayerStationInfo {
   stationId: string | null;
   stationName: string;
@@ -12,6 +15,7 @@ export interface PlayerStationInfo {
   endpointLabel: string | null;
 }
 
+/** Snapshot of the player state broadcast to onChange listeners. */
 export interface SharedPlayerState {
   station: PlayerStationInfo;
   isPlaying: boolean;
@@ -167,14 +171,17 @@ function saveMuted(m: boolean): void {
   }
 }
 
+/** Return the current PlayerState. */
 export function getState(): PlayerState {
   return currentState;
 }
 
+/** Return the currently loaded stream URL. */
 export function getCurrentUrl(): string {
   return currentUrl;
 }
 
+/** Build a SharedPlayerState snapshot from the current values. */
 export function getSharedPlayerState(): SharedPlayerState {
   return {
     station: { ...currentStationInfo },
@@ -188,6 +195,10 @@ export function getSharedPlayerState(): SharedPlayerState {
   };
 }
 
+/**
+ * Subscribe to PlayerState transitions.
+ * @returns unsubscribe function.
+ */
 export function onStateChange(fn: (state: PlayerState) => void): () => void {
   stateListeners.push(fn);
   return () => {
@@ -195,6 +206,10 @@ export function onStateChange(fn: (state: PlayerState) => void): () => void {
   };
 }
 
+/**
+ * Subscribe to playback error messages.
+ * @returns unsubscribe function.
+ */
 export function onError(fn: (msg: string) => void): () => void {
   errorListeners.push(fn);
   return () => {
@@ -202,6 +217,10 @@ export function onError(fn: (msg: string) => void): () => void {
   };
 }
 
+/**
+ * Subscribe to full SharedPlayerState changes (state, volume, mute, station).
+ * @returns unsubscribe function.
+ */
 export function onChange(fn: (state: SharedPlayerState) => void): () => void {
   changeListeners.push(fn);
   return () => {
@@ -209,10 +228,15 @@ export function onChange(fn: (state: SharedPlayerState) => void): () => void {
   };
 }
 
+/** Return the shared persistent HTMLAudioElement. */
 export function getAudioElement(): HTMLAudioElement | null {
   return audio;
 }
 
+/**
+ * Start or switch playback to a stream URL.
+ * Upgrades http:// to https:// when the page is served over HTTPS.
+ */
 export function play(url: string): void {
   const el = getAudio();
 
@@ -252,6 +276,7 @@ export function play(url: string): void {
     });
 }
 
+/** Toggle between play and pause based on current state. */
 export function togglePlayback(): void {
   if (currentState === "playing" || currentState === "loading") {
     pause();
@@ -260,12 +285,14 @@ export function togglePlayback(): void {
   }
 }
 
+/** Pause playback (keeps the stream URL loaded). */
 export function pause(): void {
   if (audio) {
     audio.pause();
   }
 }
 
+/** Stop playback and clear the stream URL. State returns to idle. */
 export function stop(): void {
   if (audio) {
     audio.pause();
@@ -275,50 +302,59 @@ export function stop(): void {
   setState("idle");
 }
 
+/** Return the current volume level [0..1]. */
 export function getVolume(): number {
   if (!audio) return loadVolume();
   return audio.volume;
 }
 
+/** Set the volume level [0..1] and persist it. */
 export function setVolume(v: number): void {
   const el = getAudio();
   const clamped = Math.max(0, Math.min(1, v));
   el.volume = clamped;
   saveVolume(clamped);
   notifyChange();
-  document.dispatchEvent(new CustomEvent("radiova:volume-changed", { detail: clamped }));
+  document.dispatchEvent(new CustomEvent(EVENTS.VOLUME_CHANGED, { detail: clamped }));
 }
 
+/** Return whether the audio element is muted. */
 export function isMuted(): boolean {
   if (!audio) return loadMuted();
   return audio.muted;
 }
 
+/** Mute or unmute the audio element and persist the choice. */
 export function setMuted(m: boolean): void {
   const el = getAudio();
   el.muted = m;
   saveMuted(m);
   notifyChange();
-  document.dispatchEvent(new CustomEvent("radiova:mute-changed", { detail: m }));
+  document.dispatchEvent(new CustomEvent(EVENTS.MUTE_CHANGED, { detail: m }));
 }
 
+/** Toggle mute state. */
 export function toggleMute(): void {
   setMuted(!isMuted());
 }
 
+/** Return a copy of the current station info. */
 export function getStationInfo(): PlayerStationInfo {
   return { ...currentStationInfo };
 }
 
+/** Set the currently active station info and notify listeners. */
 export function setStationInfo(info: PlayerStationInfo): void {
   currentStationInfo = { ...info };
   notifyChange();
 }
 
+/** Force-set the player state and optional error message. */
 export function setPlaybackStatus(status: PlayerState, errorMessage: string | null = null): void {
   setState(status, errorMessage);
 }
 
+/** Return the human-readable label for a given PlayerState in the current UI language. */
 export function getPlaybackStatusLabel(status: PlayerState): string {
   const docLang = typeof document === "undefined" ? "en" : document.documentElement.lang;
   const lang = docLang === "uk" || docLang === "de" ? docLang : "en";
