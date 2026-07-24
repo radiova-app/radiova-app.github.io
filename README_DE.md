@@ -10,7 +10,7 @@ Dateien in docs/ nicht manuell bearbeiten. Sie werden durch den Production-Build
 
 Status: gepflegtes Deployment-Repository für die öffentliche Radiova-Seite.
 
-Offizielle Website: <https://radiova-app.github.io>
+Offizielle Website: <https://radiova-app.github.io/de/>
 
 ## Inhalt dieses Repositories
 
