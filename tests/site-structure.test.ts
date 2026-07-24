@@ -130,10 +130,19 @@ describe("site structure", () => {
   });
 
   it("has PWA icons", () => {
-    expect(pathExists("public/assets/icons/icon-192.png")).toBe(true);
-    expect(pathExists("public/assets/icons/icon-512.png")).toBe(true);
-    expect(pathExists("public/assets/icons/icon-192-maskable.png")).toBe(true);
-    expect(pathExists("public/assets/icons/icon-512-maskable.png")).toBe(true);
+    expect(pathExists("public/icons/icon-192.png")).toBe(true);
+    expect(pathExists("public/icons/icon-512.png")).toBe(true);
+    expect(pathExists("public/icons/icon-192-maskable.png")).toBe(true);
+    expect(pathExists("public/icons/icon-512-maskable.png")).toBe(true);
+  });
+
+  it("precaches current PWA icon paths", () => {
+    const serviceWorker = readFile("public/sw.js");
+    expect(serviceWorker).toContain("/icons/favicon-32.png");
+    expect(serviceWorker).toContain("/icons/icon-192.png");
+    expect(serviceWorker).toContain("/icons/icon-512.png");
+    expect(serviceWorker).not.toContain("/assets/icons/");
+    expect(serviceWorker).not.toContain("/favicon.svg");
   });
 
   it("has GitHub Actions workflow", () => {
@@ -329,7 +338,9 @@ describe("equalizer lifecycle", () => {
    * null check so that the source is created only once.
    */
   it("prevents duplicate MediaElementSource", () => {
-    expect(audioGraph).toContain("if (!graph.source) graph.source = ctx.createMediaElementSource(audioEl)");
+    expect(audioGraph).toContain(
+      "if (!graph.source) graph.source = ctx.createMediaElementSource(audioEl)",
+    );
     expect(audioGraph.match(/createMediaElementSource\(audioEl\)/g)?.length).toBe(1);
   });
 });
@@ -468,9 +479,7 @@ describe("media-event player UI", () => {
     expect(dashboard).toContain("iconForStatus(rowStatus)");
     const dom = readFile("src/shared/dom.ts");
     expect(dom).toContain("SPINNER_ICON_FULL");
-    expect(dom).toContain(
-      'status === "loading" || status === "waiting" || status === "retrying"',
-    );
+    expect(dom).toContain('status === "loading" || status === "waiting" || status === "retrying"');
   });
 
   it("uses warning icon after all endpoints fail", () => {
@@ -794,15 +803,15 @@ describe("station row structure", () => {
 
   it("EVENTS constants match source event names", () => {
     const constants = readFile("src/shared/constants.ts");
-    expect(constants).toContain("PLAYER_TOGGLE: \"radiova:player-toggle\"");
-    expect(constants).toContain("STATION_SELECTED: \"radiova:station-selected\"");
-    expect(constants).toContain("STATIONS_CHANGED: \"radiova:stations-changed\"");
-    expect(constants).toContain("PLAYER_STATION_CHANGED: \"radiova:player-station-changed\"");
-    expect(constants).toContain("REFRESH: \"radiova:refresh\"");
-    expect(constants).toContain("VOLUME_CHANGED: \"radiova:volume-changed\"");
-    expect(constants).toContain("MUTE_CHANGED: \"radiova:mute-changed\"");
-    expect(constants).toContain("CONSENT_RESOLVED: \"radiova:consent-resolved\"");
-    expect(constants).toContain("CONSENT_CHANGED: \"radiova:consent-changed\"");
+    expect(constants).toContain('PLAYER_TOGGLE: "radiova:player-toggle"');
+    expect(constants).toContain('STATION_SELECTED: "radiova:station-selected"');
+    expect(constants).toContain('STATIONS_CHANGED: "radiova:stations-changed"');
+    expect(constants).toContain('PLAYER_STATION_CHANGED: "radiova:player-station-changed"');
+    expect(constants).toContain('REFRESH: "radiova:refresh"');
+    expect(constants).toContain('VOLUME_CHANGED: "radiova:volume-changed"');
+    expect(constants).toContain('MUTE_CHANGED: "radiova:mute-changed"');
+    expect(constants).toContain('CONSENT_RESOLVED: "radiova:consent-resolved"');
+    expect(constants).toContain('CONSENT_CHANGED: "radiova:consent-changed"');
   });
 });
 
@@ -1091,7 +1100,9 @@ describe("stereo equalizer", () => {
     expect(eq).toContain("const leftLevel = readAnalyserLevel(audioGraph.analyserL)");
     expect(eq).toContain("const rightLevel = readAnalyserLevel(audioGraph.analyserR)");
     expect(eq).toContain("leftMeterWidth = smoothLevel(leftMeterWidth, meterTarget(topLevel))");
-    expect(eq).toContain("rightMeterWidth = smoothLevel(rightMeterWidth, meterTarget(bottomLevel))");
+    expect(eq).toContain(
+      "rightMeterWidth = smoothLevel(rightMeterWidth, meterTarget(bottomLevel))",
+    );
   });
 
   it("keeps mono fallback real by sharing the available analyser", () => {
@@ -1173,7 +1184,7 @@ describe("service worker", () => {
   const sw = readFile("public/sw.js");
 
   it("has updated cache version", () => {
-    expect(sw).toContain("radiova-v4");
+    expect(sw).toContain("radiova-v5");
   });
 
   it("guards /src/ paths from caching", () => {
@@ -1212,7 +1223,9 @@ describe("privacy consent gate", () => {
   const globalScss = readFile("src/styles/global.scss");
 
   it("defines versioned consent categories", () => {
-    expect(consent).toContain('type ConsentCategory = "necessary" | "preferences" | "offline" | "diagnostics"');
+    expect(consent).toContain(
+      'type ConsentCategory = "necessary" | "preferences" | "offline" | "diagnostics"',
+    );
     expect(consent).toContain("export interface ConsentState");
     expect(consent).toContain("CONSENT_VERSION = 1");
   });
@@ -1418,7 +1431,9 @@ describe("persistent audio graph (equalizer refactor)", () => {
   const globalScss = readFile("src/styles/global.scss");
 
   it("has ensureGraph that checks already-connected", () => {
-    expect(graphFile).toContain("graph.connected && graph.source && graph.audioElement === audioEl");
+    expect(graphFile).toContain(
+      "graph.connected && graph.source && graph.audioElement === audioEl",
+    );
   });
 
   it("has persistent graph and replaceable views", () => {
@@ -1429,7 +1444,9 @@ describe("persistent audio graph (equalizer refactor)", () => {
   });
 
   it("creates one media element source only when missing", () => {
-    expect(graphFile).toContain("if (!graph.source) graph.source = ctx.createMediaElementSource(audioEl)");
+    expect(graphFile).toContain(
+      "if (!graph.source) graph.source = ctx.createMediaElementSource(audioEl)",
+    );
     expect(graphFile.match(/createMediaElementSource\(audioEl\)/g)?.length).toBe(1);
   });
 
@@ -1493,11 +1510,11 @@ describe("persistent audio graph (equalizer refactor)", () => {
     expect(app).toContain('const sideVis = $("dashboard-side-visualizer")');
     expect(app).toContain("equalizer.rebindCanvases(eqLeft, eqRight, sideVis)");
     expect(app).toContain("equalizer.rebindSideCanvas(sideVis)");
-    expect(app).toContain("document.addEventListener(\"astro:page-load\", onPageNavigation)");
+    expect(app).toContain('document.addEventListener("astro:page-load", onPageNavigation)');
   });
 
   it("route return while playing resumes immediately", () => {
-    expect(app).toContain("equalizer.syncWithCurrentPlaybackState(state === \"playing\")");
+    expect(app).toContain('equalizer.syncWithCurrentPlaybackState(state === "playing")');
   });
 
   it("station changes update debug station id and do not rebuild graph", () => {

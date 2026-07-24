@@ -91,13 +91,22 @@ const ukHref = "/uk" + (enHref === "/" ? "/" : enHref);
 const deHref = "/de" + (enHref === "/" ? "/" : enHref);
 const normPath = enHref === "" ? "/" : enHref;
 const emptyStationTitle =
-  lang === "uk" ? "Станцію не вибрано" : lang === "de" ? "Kein Sender ausgewählt" : "No station selected";
+  lang === "uk"
+    ? "Станцію не вибрано"
+    : lang === "de"
+      ? "Kein Sender ausgewählt"
+      : "No station selected";
 const emptyStationSubtitle =
   lang === "uk"
     ? "Виберіть станцію зі списку"
     : lang === "de"
       ? "Wählen Sie einen Sender aus der Liste"
       : "Choose a station from the list";
+const normalizedCurrentPath = currentPath.replace(/\/+$/, "") || "/";
+const isHomeRoute =
+  normalizedCurrentPath === "/" ||
+  normalizedCurrentPath === "/uk" ||
+  normalizedCurrentPath === "/de";
 ---
 
 <!doctype html>
@@ -111,8 +120,9 @@ const emptyStationSubtitle =
     <meta name="apple-mobile-web-app-title" content="Radiova" />
     <title>{title} | Radiova</title>
     {description && <meta name="description" content={description} />}
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="apple-touch-icon" href="/assets/icons/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="canonical" href={"https://radiova-app.github.io" + Astro.url.pathname} />
     <script is:inline>
@@ -134,13 +144,15 @@ const emptyStationSubtitle =
   <body>
     <audio id="persistent-audio" transition:persist preload="none" crossorigin="anonymous" hidden
     ></audio>
-    <div class="shell" id="shell">
+    <div class="shell" id="shell" data-home-route={isHomeRoute ? "true" : "false"}>
       <header class="topbar" id="topbar">
-        <div class="topbar-left">
+        <div class="topbar-start">
           <button
             class="menu-toggle"
             id="sidebar-toggle"
             type="button"
+            aria-controls="sidebar"
+            aria-expanded="false"
             aria-label={lang === "uk"
               ? "Перемкнути панель"
               : lang === "de"
@@ -150,58 +162,62 @@ const emptyStationSubtitle =
             <span set:html={menuToggleIcon} />
             <span class="label"></span>
           </button>
-          <div class="header-player" id="header-player">
-            <div
-              class="header-player__logo is-disabled"
-              id="header-station-logo"
-              role="button"
-              aria-disabled="true"
-              aria-label={emptyStationSubtitle}
+          <a href={localizeHref("/")} class="topbar-brand" aria-label="Radiova home">
+            <img src="/assets/branding/radiova-logo-48.png" alt="" width="32" height="32" />
+            <span>Radiova</span>
+          </a>
+        </div>
+        <div class:list={["header-player", { "is-route-hidden": isHomeRoute }]} id="header-player">
+          <div
+            class="header-player__logo is-disabled"
+            id="header-station-logo"
+            role="button"
+            aria-disabled="true"
+            aria-label={emptyStationSubtitle}
+          >
+            <img
+              id="header-station-image"
+              class="header-player__image"
+              src="/assets/images/station-placeholder.svg"
+              alt=""
+            />
+            <span class="header-player__toggle-icon" id="header-toggle-icon">
+              <svg viewBox="0 0 24 24" class="menu-icon" aria-hidden="true"
+                ><polygon points="5 3 19 12 5 21 5 3" fill="currentColor"></polygon></svg
+              >
+            </span>
+          </div>
+          <div class="header-player__main">
+            <span id="header-station-link" class="header-player__title">
+              <span id="header-station-title">{emptyStationTitle}</span>
+            </span>
+            <span id="header-player-status" class="player-status player-status--compact"
+              >{emptyStationSubtitle}</span
             >
-              <img
-                id="header-station-image"
-                class="header-player__image"
-                src="/assets/images/station-placeholder.svg"
-                alt=""
-              />
-              <span class="header-player__toggle-icon" id="header-toggle-icon">
+            <div id="header-stream-selector" class="stream-selector"></div>
+          </div>
+          <div class="header-player__controls">
+            <button id="header-mute-btn" class="control icon-btn" type="button" aria-label="Mute">
+              <span class="icon-wrap">
                 <svg viewBox="0 0 24 24" class="menu-icon" aria-hidden="true"
-                  ><polygon points="5 3 19 12 5 21 5 3" fill="currentColor"></polygon></svg
+                  ><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"
+                  ></polygon><path
+                    d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"
+                    stroke="currentColor"
+                    stroke-width="1.9"
+                    fill="none"
+                    stroke-linecap="round"></path></svg
                 >
               </span>
-            </div>
-            <div class="header-player__main">
-              <span id="header-station-link" class="header-player__title">
-                <span id="header-station-title">{emptyStationTitle}</span>
-              </span>
-              <span id="header-player-status" class="player-status player-status--compact"
-                >{emptyStationSubtitle}</span
-              >
-              <div id="header-stream-selector" class="stream-selector"></div>
-            </div>
-            <div class="header-player__controls">
-              <button id="header-mute-btn" class="control icon-btn" type="button" aria-label="Mute">
-                <span class="icon-wrap">
-                  <svg viewBox="0 0 24 24" class="menu-icon" aria-hidden="true"
-                    ><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" fill="currentColor"
-                    ></polygon><path
-                      d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"
-                      stroke="currentColor"
-                      stroke-width="1.9"
-                      fill="none"
-                      stroke-linecap="round"></path></svg
-                  >
-                </span>
-              </button>
-              <input
-                id="header-volume"
-                type="range"
-                min="0"
-                max="1"
-                step="0.01"
-                aria-label="Volume"
-              />
-            </div>
+            </button>
+            <input
+              id="header-volume"
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              aria-label="Volume"
+            />
           </div>
         </div>
         <div class="topbar-actions">
@@ -249,6 +265,10 @@ const emptyStationSubtitle =
           role="navigation"
           aria-label={lang === "uk" ? "Бічна панель" : lang === "de" ? "Seitenleiste" : "Sidebar"}
         >
+          <a href={localizeHref("/")} class="sidebar-brand" aria-label="Radiova home">
+            <img src="/assets/branding/radiova-logo-48.png" alt="" width="36" height="36" />
+            <span>Radiova</span>
+          </a>
           <nav class="menu-nav">
             {
               sidebarItems.map((item) => (
@@ -264,9 +284,10 @@ const emptyStationSubtitle =
             }
           </nav>
         </aside>
-        <div class="content" id="content">
+        <div class="sidebar-backdrop" id="sidebar-backdrop" aria-hidden="true"></div>
+        <main class="content" id="content">
           <slot />
-        </div>
+        </main>
       </div>
     </div>
     <script>

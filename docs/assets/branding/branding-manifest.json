@@ -1,0 +1,63 @@
+{
+  "canonicalSource": "../radiova-platform-private/packages/branding/originals/active.png",
+  "canonicalSourceFilename": "active.png",
+  "sourceSha256": "f72df72370fcc1bbc92309f0e11d45576af798b14bfb0a23807f33b14f94e883",
+  "sourceDimensions": {
+    "width": 128,
+    "height": 128
+  },
+  "sourceFormat": "png",
+  "sourceHasAlpha": true,
+  "generated": [
+    {
+      "file": "assets/branding/radiova-logo.png",
+      "width": 128,
+      "height": 128
+    },
+    {
+      "file": "assets/branding/radiova-logo-48.png",
+      "width": 48,
+      "height": 48
+    },
+    {
+      "file": "assets/branding/radiova-logo-128.png",
+      "width": 128,
+      "height": 128
+    },
+    {
+      "file": "icons/favicon-16.png",
+      "width": 16,
+      "height": 16
+    },
+    {
+      "file": "icons/favicon-32.png",
+      "width": 32,
+      "height": 32
+    },
+    {
+      "file": "icons/apple-touch-icon.png",
+      "width": 180,
+      "height": 180
+    },
+    {
+      "file": "icons/icon-192.png",
+      "width": 192,
+      "height": 192
+    },
+    {
+      "file": "icons/icon-512.png",
+      "width": 512,
+      "height": 512
+    },
+    {
+      "file": "icons/icon-192-maskable.png",
+      "width": 192,
+      "height": 192
+    },
+    {
+      "file": "icons/icon-512-maskable.png",
+      "width": 512,
+      "height": 512
+    }
+  ]
+}

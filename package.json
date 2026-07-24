@@ -13,6 +13,7 @@
     "preview": "astro preview",
     "preview:host": "astro preview --host",
     "preview:prod": "node scripts/serve-docs.mjs",
+    "branding:sync": "node scripts/sync-branding-from-originals.mjs",
     "check": "astro check",
     "lint": "eslint .",
     "lint:docs": "eslint \"src/**/*.ts\"",
@@ -20,6 +21,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "verify:responsive-branding": "node scripts/verify-responsive-branding.mjs",
     "clean": "node scripts/clean-build.mjs",
     "clean:dev": "node scripts/clean-build.mjs dist",
     "clean:prod": "node scripts/clean-build.mjs docs",
@@ -39,6 +41,7 @@
     "prettier": "^3.5.0",
     "prettier-plugin-astro": "^0.14.1",
     "sass": "^1.86.0",
+    "sharp": "^0.34.5",
     "typescript": "^5.8.0",
     "typescript-eslint": "^8.65.0",
     "vitest": "^3.1.0"

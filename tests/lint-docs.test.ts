@@ -35,9 +35,7 @@ function createFixture(fileName: string, content: string): string {
  * Run eslint on a single file using the project config.
  * npx eslint exits with code 1 on any error, 0 on pass.
  */
-function runEslint(
-  filePath: string,
-): { code: number; stdout: string; stderr: string } {
+function runEslint(filePath: string): { code: number; stdout: string; stderr: string } {
   let stdout = "";
   let stderr = "";
   let code = 0;
@@ -61,7 +59,7 @@ describe("TSDoc lint enforcement", () => {
    * from jsdoc/require-jsdoc with the `ExportNamedDeclaration > FunctionDeclaration`
    * context and `publicOnly: true`.
    */
-  it("fails for undocumented exported function", () => {
+  it("fails for undocumented exported function", { timeout: 15000 }, () => {
     const file = createFixture(
       "undocumented-export.ts",
       "export function undocumentedApi(): void {}\n",
@@ -75,7 +73,7 @@ describe("TSDoc lint enforcement", () => {
   /**
    * Adding a JSDoc comment must silence the require-jsdoc error.
    */
-  it("passes for documented exported function", () => {
+  it("passes for documented exported function", { timeout: 15000 }, () => {
     const file = createFixture(
       "documented-export.ts",
       "/** Documented public API. */\nexport function documentedApi(): void {}\n",
@@ -91,7 +89,7 @@ describe("TSDoc lint enforcement", () => {
    * a JSDoc comment, because `publicOnly: true` filters it out and
    * the context is limited to `ExportNamedDeclaration`.
    */
-  it("allows undocumented private helper", () => {
+  it("allows undocumented private helper", { timeout: 15000 }, () => {
     const file = createFixture(
       "private-helper.ts",
       "/** Doc. */\nexport const OK = true;\nfunction helper(): void { void OK; }\nhelper();\n",

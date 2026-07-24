@@ -13,33 +13,63 @@ const locales = ["uk", "en", "de", "global", "all"] as const;
     <h1 class="content-page__title" data-i18n="playlists.title">Плейлисти</h1>
 
     <div class="playlists-grid" id="playlists-page">
-      {locales.map((locale) => {
-        const label = PLAYLIST_LABELS[locale];
-        return (
-          <article class="card playlist-card" data-locale={locale}>
-            <h2 class="card__title">{label.uk}</h2>
-            <p class="card__text" id={"playlist-info-" + locale}>
-              <span data-i18n="playlists.neverUpdated">Ще не завантажено</span>
-            </p>
-            <div class="playlist-card__actions">
-              <a href="/uk/" class="card__action" data-i18n="playlists.open">Відкрити</a>
-              <a href={baseUrl + "/playlists/" + locale + ".m3u"} class="card__action" download data-i18n="playlists.download">Завантажити M3U</a>
-              <button class="card__action copy-url-btn" data-url={baseUrl + "/playlists/" + locale + ".m3u"} type="button" data-i18n="playlists.copyUrl">Копіювати URL</button>
-            </div>
-          </article>
-        );
-      })}
+      {
+        locales.map((locale) => {
+          const label = PLAYLIST_LABELS[locale];
+          return (
+            <article class="card playlist-card" data-locale={locale}>
+              <h2 class="card__title">{label.uk}</h2>
+              <p class="card__text" id={"playlist-info-" + locale}>
+                <span data-i18n="playlists.neverUpdated">Ще не завантажено</span>
+              </p>
+              <div class="playlist-card__actions">
+                <a href="/uk/" class="card__action" data-i18n="playlists.open">
+                  Відкрити
+                </a>
+                <a
+                  href={baseUrl + "/playlists/" + locale + ".m3u"}
+                  class="card__action"
+                  download
+                  data-i18n="playlists.download"
+                >
+                  Завантажити M3U
+                </a>
+                <button
+                  class="card__action copy-url-btn"
+                  data-url={baseUrl + "/playlists/" + locale + ".m3u"}
+                  type="button"
+                  data-i18n="playlists.copyUrl"
+                >
+                  Копіювати URL
+                </button>
+              </div>
+            </article>
+          );
+        })
+      }
     </div>
 
     <section class="custom-playlists">
       <h2 class="content-page__subtitle" data-i18n="custom.title">Ваші плейлисти</h2>
       <form id="custom-playlist-form" class="custom-playlist-form">
-        <label class="sr-only" for="custom-playlist-name" data-i18n="custom.name">Назва плейлиста</label>
-        <input id="custom-playlist-name" type="text" maxlength="80" data-i18n-placeholder="custom.name" placeholder="Назва плейлиста" />
-        <button class="action-btn" type="submit" data-i18n="custom.createAction">Створити плейлист</button>
+        <label class="sr-only" for="custom-playlist-name" data-i18n="custom.name"
+          >Назва плейлиста</label
+        >
+        <input
+          id="custom-playlist-name"
+          type="text"
+          maxlength="80"
+          data-i18n-placeholder="custom.name"
+          placeholder="Назва плейлиста"
+        />
+        <button class="action-btn" type="submit" data-i18n="custom.createAction"
+          >Створити плейлист</button
+        >
       </form>
       <div class="custom-actions">
-        <button id="import-m3u-btn" class="action-btn" type="button" data-i18n="custom.import">Імпортувати M3U</button>
+        <button id="import-m3u-btn" class="action-btn" type="button" data-i18n="custom.import"
+          >Імпортувати M3U</button
+        >
         <input type="file" id="import-m3u-input" accept=".m3u,.m3u8" class="is-hidden" />
       </div>
       <p id="custom-playlists-status" class="custom-playlists-status" role="status"></p>
@@ -81,7 +111,7 @@ const locales = ["uk", "en", "de", "global", "all"] as const;
 
   .playlists-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
     gap: $spacing-lg;
     margin-bottom: $spacing-2xl;
   }

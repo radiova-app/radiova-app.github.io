@@ -276,7 +276,10 @@ function observeCanvases(): void {
   for (const canvas of targets) resizeCanvasToDisplaySize(canvas);
   if (!("ResizeObserver" in window) || targets.length === 0) return;
   views.resizeObserver = new ResizeObserver(() => {
-    for (const canvas of targets) resizeCanvasToDisplaySize(canvas);
+    for (const canvas of targets) {
+      if (!canvas.isConnected) continue;
+      resizeCanvasToDisplaySize(canvas);
+    }
     drawStatic();
     updateDebug();
   });

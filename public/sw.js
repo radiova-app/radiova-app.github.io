@@ -1,4 +1,4 @@
-const CACHE = 'radiova-v4';
+const CACHE = 'radiova-v5';
 const STATIC_URLS = [
   '/',
   '/playlists',
@@ -18,11 +18,11 @@ const STATIC_URLS = [
   '/de/about',
   '/de/help',
   '/de/privacy',
-  '/favicon.svg',
-  '/assets/icons/icon-192.png',
-  '/assets/icons/icon-512.png',
-  '/assets/icons/icon-192-maskable.png',
-  '/assets/icons/icon-512-maskable.png',
+  '/icons/favicon-32.png',
+  '/icons/icon-192.png',
+  '/icons/icon-512.png',
+  '/icons/icon-192-maskable.png',
+  '/icons/icon-512-maskable.png',
 ];
 
 self.addEventListener('install', (event) => {
@@ -108,7 +108,7 @@ self.addEventListener('fetch', (event) => {
 });
 
 function isAppShell(path) {
-  if (path === '/' || path === '' || path.startsWith('/favicon') || path.startsWith('/assets/')) return true;
+  if (path === '/' || path === '' || path.startsWith('/icons/') || path.startsWith('/assets/')) return true;
   const pages = [
     '/playlists', '/downloads', '/about', '/help', '/privacy', '/support',
     '/uk/', '/uk/playlists', '/uk/downloads', '/uk/about', '/uk/help', '/uk/privacy', '/uk/support',

@@ -31,7 +31,14 @@ import {
 } from "../services/pwa";
 import { createEqualizer, type EqualizerHandle } from "./equalizer";
 import type { Station } from "../types/station";
-import { $, escapeHtml, iconForStatus, isLoadingStatus, ariaLabelForStatus, safeArtworkUrl } from "../shared/dom";
+import {
+  $,
+  escapeHtml,
+  iconForStatus,
+  isLoadingStatus,
+  ariaLabelForStatus,
+  safeArtworkUrl,
+} from "../shared/dom";
 import { EVENTS, STREAM_TIMEOUT_MS, PLACEHOLDER_IMG } from "../shared/constants";
 
 let currentPlayId: string | null = null;
@@ -44,6 +51,7 @@ let sidebarAbortController: AbortController | null = null;
 let restoredOnce = false;
 let streamTimeoutId: number | null = null;
 const isDev = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+const mobileSidebarQuery = window.matchMedia("(max-width: 640px)");
 
 const diagnostics: {
   logs: string[];
@@ -230,13 +238,18 @@ function applyDesktopCollapse(): void {
   const shell = $("shell");
   if (!shell) return;
   if (typeof settings === "undefined") return;
-  if (window.innerWidth < 640) {
+  if (mobileSidebarQuery.matches) {
     shell.classList.remove("shell-collapsed");
   } else if (settings.sidebarCollapsed) {
     shell.classList.add("shell-collapsed");
   } else {
     shell.classList.remove("shell-collapsed");
   }
+  const toggleButton = $("sidebar-toggle");
+  toggleButton?.setAttribute(
+    "aria-expanded",
+    mobileSidebarQuery.matches ? "false" : String(!shell.classList.contains("shell-collapsed")),
+  );
 }
 
 let domAbortController: AbortController | null = null;
@@ -429,14 +442,26 @@ function bindAll(): void {
 
 /** Track resize events to toggle mobile/desktop sidebar collapse. */
 function setupResizeHandler(): void {
-  let prevWidth = window.innerWidth;
-  window.addEventListener("resize", () => {
-    const w = window.innerWidth;
-    if (prevWidth < 640 !== w < 640) {
-      applyDesktopCollapse();
-    }
-    prevWidth = w;
+  mobileSidebarQuery.addEventListener("change", () => {
+    const sidebar = $("sidebar");
+    if (sidebar) setMobileSidebarOpen(sidebar, false);
+    applyDesktopCollapse();
   });
+}
+
+/**
+ * Set the mobile drawer state and keep scroll and accessibility state synchronized.
+ * @param sidebar - Drawer element.
+ * @param open - Whether the drawer should be open.
+ * @param restoreFocus - Whether focus should return to the toggle after closing.
+ */
+function setMobileSidebarOpen(sidebar: HTMLElement, open: boolean, restoreFocus = false): void {
+  const isOpen = mobileSidebarQuery.matches && open;
+  sidebar.classList.toggle("is-open-mobile", isOpen);
+  document.body.classList.toggle("sidebar-open-mobile", isOpen);
+  const toggleButton = $("sidebar-toggle") as HTMLButtonElement | null;
+  toggleButton?.setAttribute("aria-expanded", String(isOpen));
+  if (!isOpen && restoreFocus) toggleButton?.focus();
 }
 
 /** Attach sidebar toggle and route link listeners. */
@@ -450,19 +475,37 @@ function bindSidebar(): void {
   const toggleBtn = $("sidebar-toggle");
   if (!shell || !sidebar || !toggleBtn) return;
 
-  function isMobile(): boolean {
-    return window.innerWidth < 640;
-  }
+  setMobileSidebarOpen(sidebar, false);
 
   toggleBtn.addEventListener(
     "click",
     () => {
-      if (isMobile()) {
-        sidebar.classList.toggle("is-open-mobile");
+      if (mobileSidebarQuery.matches) {
+        setMobileSidebarOpen(sidebar, !sidebar.classList.contains("is-open-mobile"));
       } else {
         shell.classList.toggle("shell-collapsed");
         settings.sidebarCollapsed = shell.classList.contains("shell-collapsed");
+        toggleBtn.setAttribute("aria-expanded", String(!settings.sidebarCollapsed));
         void saveSettings(settings);
+      }
+    },
+    { signal },
+  );
+
+  const backdrop = $("sidebar-backdrop");
+  backdrop?.addEventListener(
+    "click",
+    () => {
+      setMobileSidebarOpen(sidebar, false, true);
+    },
+    { signal },
+  );
+
+  document.addEventListener(
+    "keydown",
+    (event) => {
+      if (event.key === "Escape" && sidebar.classList.contains("is-open-mobile")) {
+        setMobileSidebarOpen(sidebar, false, true);
       }
     },
     { signal },
@@ -472,7 +515,7 @@ function bindSidebar(): void {
     link.addEventListener(
       "click",
       () => {
-        if (isMobile()) sidebar.classList.remove("is-open-mobile");
+        if (mobileSidebarQuery.matches) setMobileSidebarOpen(sidebar, false);
       },
       { signal },
     );
@@ -534,7 +577,8 @@ function updateHeaderPlayer(state: SharedPlayerState): void {
     status.textContent = statusText;
     status.setAttribute("title", statusText);
   }
-  if (!hasStation) setPlayerImage("header-station-image", PLACEHOLDER_IMG, emptyTitle, "empty header");
+  if (!hasStation)
+    setPlayerImage("header-station-image", PLACEHOLDER_IMG, emptyTitle, "empty header");
 }
 
 /**
@@ -577,7 +621,13 @@ function updateDashboardPlayer(state: SharedPlayerState): void {
     status.textContent = statusText;
     status.setAttribute("title", statusText);
   }
-  if (!state.station.stationId) setPlayerImage("dashboard-station-image", PLACEHOLDER_IMG, t("player.noStation"), "empty dashboard");
+  if (!state.station.stationId)
+    setPlayerImage(
+      "dashboard-station-image",
+      PLACEHOLDER_IMG,
+      t("player.noStation"),
+      "empty dashboard",
+    );
 }
 
 /**
@@ -619,7 +669,9 @@ function setPlayerImage(imgId: string, src: string, alt: string, context: string
  * @param station - The station to display.
  */
 function setStationImages(station: Station): void {
-  const logoUrl = safeArtworkUrl(station.logo, (msg) => { diagnostics.add(msg); });
+  const logoUrl = safeArtworkUrl(station.logo, (msg) => {
+    diagnostics.add(msg);
+  });
 
   function setImg(imgId: string, alt: string): void {
     setPlayerImage(imgId, logoUrl || PLACEHOLDER_IMG, alt, "player");
