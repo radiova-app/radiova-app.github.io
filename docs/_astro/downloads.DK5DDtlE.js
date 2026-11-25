@@ -1,0 +1,1 @@
+import{a as e,i as t,r as n,t as r}from"./pwa.B4pHCPtS.js";function i(e){e.classList.toggle(`is-hidden`,n()||r()!==`installable`)}document.addEventListener(`DOMContentLoaded`,()=>{let n=document.getElementById(`pwa-install-page`);n&&(i(n),t(()=>{i(n)}),n.addEventListener(`click`,()=>{e()}))});
