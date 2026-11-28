@@ -1,0 +1,1 @@
+import{n as e,o as t}from"./consent.Dma9kwKE.js";t().then(()=>{`serviceWorker`in navigator&&e(`offline`)&&(window.addEventListener(`load`,()=>{navigator.serviceWorker.register(`/sw.js`).catch(()=>{})}),navigator.serviceWorker.addEventListener(`controllerchange`,()=>{window.location.reload()}))});

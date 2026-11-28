@@ -2,48 +2,56 @@
   "pwa": {
     "name": "PWA",
     "status": "available",
-    "description": "Install Radiova as a standalone app"
+    "description": "Install Radiova as a standalone app",
+    "group": "pwa"
   },
   "chrome": {
     "name": "Chrome",
     "status": "coming-soon",
     "description": "Chrome extension",
+    "group": "browser",
     "url": ""
   },
   "edge": {
     "name": "Edge",
     "status": "coming-soon",
     "description": "Edge extension",
+    "group": "browser",
     "url": ""
   },
   "firefox": {
     "name": "Firefox",
     "status": "coming-soon",
     "description": "Firefox extension",
+    "group": "browser",
     "url": ""
   },
   "zip": {
     "name": "Manual ZIP",
     "status": "coming-soon",
     "description": "Manual extension installation",
+    "group": "browser",
     "url": ""
   },
   "android": {
     "name": "Android",
     "status": "coming-soon",
     "description": "Android app",
+    "group": "mobile",
     "url": ""
   },
   "ios": {
     "name": "iOS",
     "status": "coming-soon",
     "description": "iOS app",
+    "group": "mobile",
     "url": ""
   },
   "windows": {
     "name": "Windows",
     "status": "coming-soon",
     "description": "Windows app",
+    "group": "desktop",
     "url": ""
   }
 }

@@ -1,0 +1,1 @@
+import{t as e}from"./preload-helper.DygEbaNj.js";e(async()=>{let{startAuthBridge:e}=await import(`./auth-bridge-run.ahGQPeZA.js`);return{startAuthBridge:e}},[]).then(({startAuthBridge:e})=>{e()});
